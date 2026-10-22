@@ -34,3 +34,8 @@ build/
 *.sqlite
 *.db
 data/local/
+
+# 本地测试 / 样本数据（不上传 GitHub）
+sample-data/
+*.xlsx
+db/seeds/

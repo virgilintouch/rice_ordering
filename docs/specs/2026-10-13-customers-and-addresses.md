@@ -17,7 +17,7 @@
 
 ## 数据样本
 
-脱敏样本见 `sample-data/customers-sample.xlsx`（35 行，虚构姓名/电话/地址，保留渠道与多地址结构）。Excel 列：`姓名 | 来源 | 收件人 | 电话 | 地址`。
+本地样本见 `sample-data/customers-sample.xlsx`（仅本机，不入库）。Excel 列：`姓名 | 来源 | 收件人 | 电话 | 地址`。
 
 ## 表设计
 

@@ -7,6 +7,7 @@
 - `001_customers_and_addresses.sql`
 - `002_rice_year_prices.sql`（含运费、真空费、四档售价；不另建运费表、真空费表）
 - `003_orders.sql`
+- `004_app_users.sql`（后台登录账号；与 customers 分开）
 
 ## 规则
 

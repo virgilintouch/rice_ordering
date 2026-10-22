@@ -22,3 +22,5 @@ psql -U "$DB_USER" -d "$DB_NAME" -f db/schema/001_customers_and_addresses.sql
 |---|---|---|
 | 001 | customers + customer_addresses | 已执行（见 [docs/PROGRESS.md](../docs/PROGRESS.md)） |
 | 002 | rice_year_prices | 已执行（2026-10-14，DBeaver 已核对测试行） |
+| 003 | orders | 已执行（2026-10-22，psql 已核对） |
+| 004 | app_users | 已执行（2026-10-22，psql 已核对） |

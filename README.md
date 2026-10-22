@@ -5,7 +5,7 @@
 ## 当前状态
 
 - **已建表并验证（含 DBeaver）**：3 张（`customers`、`customer_addresses`、`rice_year_prices`）
-- **待设计**：1 张（`orders`）
+- **已建表（psql 已核对，尚未用 DBeaver 看）**：2 张（`orders`、`app_users`）
 - **业务代码**：暂未开始
 - **最新进度**：见 [docs/PROGRESS.md](docs/PROGRESS.md)
 - **DBeaver 连接与浏览**：见 [docs/dbeaver-guide.md](docs/dbeaver-guide.md)
@@ -26,7 +26,7 @@
 ├── db/
 │   ├── README.md                      # 数据库连接与迁移说明
 │   └── schema/                        # 迁移脚本
-├── sample-data/                       # 脱敏样本数据（非真实客户）
+├── sample-data/                       # 本地样本数据（已 gitignore，不上传）
 └── scripts/                           # 运维脚本
 ```
 
@@ -80,9 +80,42 @@
 | vip_vacuum_per_jin | NUMERIC(10,2) | NOT NULL, CHECK > 0 |
 | jin_per_pack | INTEGER | NOT NULL, CHECK > 0 |
 
+### orders（已建表，psql 已核对）
+
+详细见 [docs/specs/2026-10-22-orders.md](docs/specs/2026-10-22-orders.md)。关联客户/地址/价目年；收货文字与价格做快照。状态：`ordered` → `paid` → `shipped` → `delivered`。暂无 `cancelled`。
+
+| 字段 | 类型 | 关键约束 |
+|---|---|---|
+| id | BIGSERIAL | PK |
+| order_no | VARCHAR(32) | UNIQUE, NOT NULL |
+| customer_id | BIGINT | FK → customers(id) |
+| address_id | BIGINT | FK → customer_addresses(id) |
+| price_year | SMALLINT | FK → rice_year_prices(year) |
+| recipient_name, recipient_phone, address | TEXT | NOT NULL，收货快照 |
+| price_tier | VARCHAR(32) | CHECK 四档 |
+| pack_count, jin_per_pack | INTEGER | NOT NULL, CHECK > 0 |
+| unit_price / cost / shipping / vacuum / amount | NUMERIC | 价格快照；真空费允许 0 |
+| status | VARCHAR(16) | ordered / paid / shipped / delivered |
+| ordered_at, paid_at, shipped_at, delivered_at | TIMESTAMPTZ | 后三者可空 |
+
+### app_users（已建表，psql 已核对）
+
+详细见 [docs/specs/2026-10-22-app-users.md](docs/specs/2026-10-22-app-users.md)。后台登录账号，与买米客户 `customers` 分开。密码只存哈希。
+
+| 字段 | 类型 | 关键约束 |
+|---|---|---|
+| id | BIGSERIAL | PK |
+| username | VARCHAR(64) | UNIQUE, NOT NULL |
+| password_hash | TEXT | NOT NULL |
+| display_name | VARCHAR(64) | NOT NULL |
+| role | VARCHAR(16) | CHECK IN ('admin','operator') |
+| status | VARCHAR(16) | CHECK IN ('active','disabled') |
+| last_login_at | TIMESTAMPTZ | 可空 |
+| created_at, updated_at | TIMESTAMPTZ | |
+
 ## 给后续 AI 工具的接力说明
 
-1. **从下一张表继续**：`orders`（订单，含价格快照）。`rice_year_prices` 已建表。不要再设计 `shipping_rates`、`vacuum_rates`。
+1. **五张表已齐**（业务四张 + `app_users`）。下一步搭本地 Web 骨架。不要再设计 `shipping_rates`、`vacuum_rates`。
 2. **已建表的不要重做**。除非用户明确说要改。
 3. **新表的设计流程**：
    - 在对话中与用户对齐字段
@@ -99,8 +132,11 @@
 - [ ] 从 Excel 导入 35 行客户数据
 - [x] `rice_year_prices` 设计定稿、建表，并在 DBeaver 核对 2026 年测试行与毛利
 - [x] 运费、真空费并入 `rice_year_prices`，不再单独建表
-- [ ] `orders` 订单（含价格快照）
-- [ ] Web 前端
+- [x] `orders` 设计定稿并建表（psql 已核对）
+- [ ] `orders` 的 DBeaver 可视化验证
+- [x] `app_users` 设计定稿并建表（psql 已核对）
+- [ ] `app_users` 的 DBeaver 可视化验证
+- [ ] Web 前端（订单 / 客户 / 成本 / 用户管理）
 - [ ] Web 后端
 - [ ] 数据导入工具自动化
 

@@ -1,10 +1,10 @@
 # 项目进度
 
-最后更新：2026-10-14
+最后更新：2026-10-22
 
 ## 当前阶段
 
-数据库设计 + 落地 + 可视化验证。已建表 3 张，均已在 DBeaver 核对。
+数据库设计 + 落地 + 可视化验证。已建表 5 张。架构方向：本地 Web（页面 + API + PostgreSQL），板块含订单、客户、成本/价目、用户管理。
 
 ## 已完成
 
@@ -13,6 +13,8 @@
 - [x] `customers` 客户档案 — 设计 → spec → SQL → 建表 → DBeaver 可视化验证
 - [x] `customer_addresses` 收货地址簿 — 设计 → spec → SQL → 建表 → DBeaver 可视化验证
 - [x] `rice_year_prices` 年份价格 — 设计 → ADR → spec → SQL → 建表 → DBeaver 核对测试行与毛利
+- [x] `orders` 订单 — 设计 → ADR → spec → SQL → 建表（psql 已核对，DBeaver 未看）
+- [x] `app_users` 后台用户 — 设计 → ADR → spec → SQL → 建表（psql 已核对，DBeaver 未看）
 
 ### 工程基础
 
@@ -63,6 +65,30 @@
 - 查询：`SELECT * FROM rice_year_prices WHERE year = 2026`，以及四档每斤毛利
 - 结果：测试行与毛利正常。零售每斤毛利 3.80，VIP 每斤毛利 2.80
 
+### 2026-10-22：orders 建表（psql）
+
+- 迁移脚本：`db/schema/003_orders.sql`
+- 工具：`/Library/PostgreSQL/18/bin/psql` via `apply-migration.sh`
+- 数据库：`rice_ordering`
+- 结果：
+  - 表创建成功；3 个外键（customers / customer_addresses / rice_year_prices）
+  - 状态 CHECK：`ordered` / `paid` / `shipped` / `delivered`
+  - 价档 CHECK：四档；真空费允许 `>= 0`
+  - 索引：`customer_id`、`status`、`ordered_at` + `order_no` 唯一
+  - 当前无数据行
+
+### 2026-10-22：app_users 建表（psql）
+
+- 迁移脚本：`db/schema/004_app_users.sql`
+- 工具：`/Library/PostgreSQL/18/bin/psql` via `apply-migration.sh`
+- 数据库：`rice_ordering`
+- 结果：
+  - 表创建成功；`username` 唯一
+  - 角色 CHECK：`admin` / `operator`
+  - 状态 CHECK：`active` / `disabled`
+  - 索引：`idx_app_users_status`
+  - 当前无数据行
+
 ## 进行中
 
 无。
@@ -71,9 +97,9 @@
 
 按优先级：
 
-1. 从 Excel 导入 35 行客户数据，验证表设计对真实使用场景的覆盖度
-2. `orders` 订单（含价格快照）。下单时从 `rice_year_prices` 抄售价，历史订单不回写年份价格
-3. Web 前端 / 后端
+1. 在 DBeaver 查看 `orders`、`app_users`
+2. 从 Excel 导入客户数据
+3. 搭本地 Web 骨架（页面板块 + API + 连库）
 4. 数据导入工具自动化
 
 ## 环境配置
@@ -109,3 +135,7 @@
 - 详细 spec：`docs/specs/2026-10-13-customers-and-addresses.md`
 - 年份价格合成一张表（含运费、真空费、四档售价）：`docs/decisions/0002-yearly-price-table.md`
 - 详细 spec：`docs/specs/2026-10-14-rice-year-prices.md`
+- 订单关联 + 收货快照 + 价格快照：`docs/decisions/0003-orders-model.md`
+- 详细 spec：`docs/specs/2026-10-22-orders.md`
+- 后台账号与客户分离：`docs/decisions/0004-app-users.md`
+- 详细 spec：`docs/specs/2026-10-22-app-users.md`

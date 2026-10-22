@@ -1,0 +1,36 @@
+# 环境与密钥
+.env
+.env.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+.next/
+.nuxt/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# 临时与日志
+*.log
+*.tmp
+.cache/
+
+# 数据库本地数据
+*.sqlite
+*.db
+data/local/

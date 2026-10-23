@@ -10,6 +10,10 @@ const links = [
   { href: "/users", label: "用户管理" },
 ];
 
+function isCurrent(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function Nav() {
   const pathname = usePathname();
 
@@ -19,7 +23,7 @@ export function Nav() {
         <Link
           key={link.href}
           href={link.href}
-          aria-current={pathname === link.href ? "page" : undefined}
+          aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
         >
           {link.label}
         </Link>

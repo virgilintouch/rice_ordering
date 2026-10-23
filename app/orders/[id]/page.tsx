@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { query } from "@/lib/db";
+import { formatTime } from "@/app/format";
 import { OrderDetailActions } from "@/app/orders/[id]/OrderDetailActions";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +20,6 @@ type OrderDetail = {
   shipped_at: Date | null;
   delivered_at: Date | null;
 };
-
-function formatTime(value: Date | string | null | undefined): string {
-  if (!value) return "—";
-  return new Date(value).toLocaleString("zh-CN");
-}
 
 async function loadOrder(orderId: number): Promise<OrderDetail | null> {
   if (!Number.isInteger(orderId) || orderId <= 0) return null;
@@ -69,13 +65,13 @@ export default async function OrderDetailPage({
   const order = await loadOrder(Number(idRaw));
   if (!order) notFound();
 
-  const fields: { label: string; value: string }[] = [
+  const fields: { label: string; value: string; wide?: boolean }[] = [
     { label: "订单号", value: order.order_no },
     { label: "客户姓名", value: order.customer_name ?? "—" },
     { label: "数量（包）", value: String(order.pack_count) },
     { label: "单价（元/斤）", value: order.unit_price_per_jin },
     { label: "收件人", value: order.recipient_name },
-    { label: "地址", value: order.address },
+    { label: "地址", value: order.address, wide: true },
     { label: "电话", value: order.recipient_phone },
     { label: "下单时间", value: formatTime(order.ordered_at) },
     { label: "付款时间", value: formatTime(order.paid_at) },
@@ -91,7 +87,10 @@ export default async function OrderDetailPage({
       <div className="panel">
         <dl className="detail-list">
           {fields.map((f) => (
-            <div key={f.label} className="detail-row">
+            <div
+              key={f.label}
+              className={f.wide ? "detail-row detail-row-wide" : "detail-row"}
+            >
               <dt>{f.label}</dt>
               <dd>{f.value}</dd>
             </div>

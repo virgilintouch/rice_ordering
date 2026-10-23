@@ -42,8 +42,8 @@ export function EditCustomerForm({ values }: { values: EditCustomerValues }) {
         <label>
           状态
           <select name="status" defaultValue={values.status}>
-            <option value="active">active</option>
-            <option value="disabled">disabled</option>
+            <option value="active">启用</option>
+            <option value="disabled">停用</option>
           </select>
         </label>
         <label>
@@ -76,7 +76,7 @@ export function EditCustomerForm({ values }: { values: EditCustomerValues }) {
         </a>
       </div>
       {state.message ? (
-        <p className={state.ok ? "meta" : "error"}>{state.message}</p>
+        <p className={state.ok ? "ok" : "error"}>{state.message}</p>
       ) : null}
     </form>
   );

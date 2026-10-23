@@ -6,7 +6,8 @@
 
 - **已建表**：5 张（`customers`、`customer_addresses`、`rice_year_prices`、`orders`、`app_users`）
 - **Web**：Next.js 端口 `3721`；客户 / 订单 / 年份价目可写入；客户支持 Excel/CSV 批量导入；用户页仍为只读
-- **尚未做**（优先级）：前端美化 → 安全性评估与优化 → 登录 → 价目修改/用户写入 → 简单报表
+- **已做**：前端可读性调整（导航、表格、表单、空态与错误态；业务逻辑未改）
+- **尚未做**（优先级）：安全性评估与优化 → 登录 → 价目修改/用户写入 → 简单报表
 - **最新进度**：见 [docs/PROGRESS.md](docs/PROGRESS.md)
 - **DBeaver 连接与浏览**：见 [docs/dbeaver-guide.md](docs/dbeaver-guide.md)
 
@@ -160,7 +161,7 @@ Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-
 - [x] 订单新建（价格快照）/ 状态推进 / 详情打印 / 时间戳
 - [x] 年份价目新建
 - [x] 脱敏种子检查：现阶段不建仓库内 seed；本机 `sample-data/` 不入库
-- [ ] 1. 前端界面美化调整
+- [x] 1. 前端界面美化调整（可读性与日常操作，不改业务逻辑）
 - [ ] 2. 整体代码安全性评估与优化
 - [ ] 3. 登录（`app_users`）
 - [ ] 4. 价目修改 / 用户写入

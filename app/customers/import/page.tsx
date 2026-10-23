@@ -49,19 +49,33 @@ export default async function CustomerImportPage({
 
         {error ? <p className="error">{error}</p> : null}
         {hasResult ? (
-          <div className="meta" style={{ marginTop: "1rem" }}>
-            <p>
-              新建客户 {created || "0"}；新增地址 {addresses || "0"}；跳过{" "}
-              {skipped || "0"}；失败 {failed || "0"}
-            </p>
+          <>
+            <ul className="stat-row">
+              <li>
+                <strong>{created || "0"}</strong>
+                <span>新建客户</span>
+              </li>
+              <li>
+                <strong>{addresses || "0"}</strong>
+                <span>新增地址</span>
+              </li>
+              <li>
+                <strong>{skipped || "0"}</strong>
+                <span>跳过</span>
+              </li>
+              <li className={Number(failed) > 0 ? "warn" : undefined}>
+                <strong>{failed || "0"}</strong>
+                <span>失败</span>
+              </li>
+            </ul>
             {failedDetail ? (
-              <ul>
+              <ul className="import-failures">
                 {failedDetail.split("|").map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
             ) : null}
-          </div>
+          </>
         ) : null}
       </div>
     </>

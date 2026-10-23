@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { query } from "@/lib/db";
+import { Badge } from "@/app/components/Badge";
+import { formatTime } from "@/app/format";
+import { ORDER_STATUS_LABEL, PRICE_TIER_LABEL, labelOf } from "@/app/labels";
 import { CreateOrderForm } from "@/app/orders/CreateOrderForm";
 import { advanceOrderAction } from "@/app/orders/actions";
 
@@ -24,11 +27,6 @@ type OrderRow = {
 function one(v: string | string[] | undefined): string {
   if (Array.isArray(v)) return v[0] ?? "";
   return v ?? "";
-}
-
-function formatTime(value: Date | string | null | undefined): string {
-  if (!value) return "—";
-  return new Date(value).toLocaleString("zh-CN");
 }
 
 const NEXT_LABEL: Record<string, string> = {
@@ -137,6 +135,8 @@ export default async function OrdersPage({
     error = e instanceof Error ? e.message : "查询失败";
   }
 
+  const filtered = Boolean(status || customer || from || to);
+
   return (
     <>
       <h1 className="page-title">订单</h1>
@@ -153,15 +153,23 @@ export default async function OrdersPage({
       </div>
 
       <div className="panel">
+        <div className="panel-head">
+          <h2>订单列表</h2>
+          {!error && rows.length > 0 ? (
+            <p className="meta">
+              共 {rows.length} 条{rows.length >= 200 ? "（已达 200 条上限）" : ""}
+            </p>
+          ) : null}
+        </div>
         <form className="filters" method="get">
           <label>
             状态
             <select name="status" defaultValue={status}>
               <option value="">全部</option>
-              <option value="ordered">ordered</option>
-              <option value="paid">paid</option>
-              <option value="shipped">shipped</option>
-              <option value="delivered">delivered</option>
+              <option value="ordered">已下单</option>
+              <option value="paid">已付款</option>
+              <option value="shipped">已发货</option>
+              <option value="delivered">已签收</option>
             </select>
           </label>
           <label>
@@ -184,20 +192,20 @@ export default async function OrdersPage({
 
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
-          <p className="empty">暂无订单数据。</p>
+          <p className="empty">
+            {filtered ? "没有符合筛选条件的订单。" : "暂无订单。可在上方新建。"}
+          </p>
         ) : null}
         {!error && rows.length > 0 ? (
-          <>
-            <p className="meta">共 {rows.length} 条</p>
-            <div className="table-wrap">
+          <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>订单号</th>
                     <th>客户</th>
                     <th>价档</th>
-                    <th>包数</th>
-                    <th>金额</th>
+                    <th className="num">包数</th>
+                    <th className="num">金额（元）</th>
                     <th>状态</th>
                     <th>下单时间</th>
                     <th>付款时间</th>
@@ -209,9 +217,9 @@ export default async function OrdersPage({
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.id}>
-                      <td>
+                      <td className="emph">
                         <Link
-                          className="linkish"
+                          className="linkish order-no"
                           href={`/orders/${row.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -220,10 +228,14 @@ export default async function OrdersPage({
                         </Link>
                       </td>
                       <td>{row.customer_name ?? "—"}</td>
-                      <td>{row.price_tier}</td>
-                      <td>{row.pack_count}</td>
-                      <td>{row.amount}</td>
-                      <td>{row.status}</td>
+                      <td>{labelOf(PRICE_TIER_LABEL, row.price_tier)}</td>
+                      <td className="num">{row.pack_count}</td>
+                      <td className="num">{row.amount}</td>
+                      <td>
+                        <Badge value={row.status}>
+                          {labelOf(ORDER_STATUS_LABEL, row.status)}
+                        </Badge>
+                      </td>
                       <td>{formatTime(row.ordered_at)}</td>
                       <td>{formatTime(row.paid_at)}</td>
                       <td>{formatTime(row.shipped_at)}</td>
@@ -246,8 +258,7 @@ export default async function OrdersPage({
                   ))}
                 </tbody>
               </table>
-            </div>
-          </>
+          </div>
         ) : null}
       </div>
     </>

@@ -1,4 +1,7 @@
 import { query } from "@/lib/db";
+import { Badge } from "@/app/components/Badge";
+import { formatTime } from "@/app/format";
+import { ACCOUNT_STATUS_LABEL, ROLE_LABEL, labelOf } from "@/app/labels";
 
 export const dynamic = "force-dynamic";
 
@@ -65,24 +68,30 @@ export default async function UsersPage({
   return (
     <>
       <h1 className="page-title">用户管理</h1>
-      <p className="page-desc">只读列表。不展示密码哈希。按角色、状态筛选。</p>
+      <p className="page-desc">只读列表。密码不会出现在此页。按角色、状态筛选。</p>
 
       <div className="panel">
+        <div className="panel-head">
+          <h2>后台账号</h2>
+          {!error && rows.length > 0 ? (
+            <p className="meta">共 {rows.length} 条</p>
+          ) : null}
+        </div>
         <form className="filters" method="get">
           <label>
             角色
             <select name="role" defaultValue={role}>
               <option value="">全部</option>
-              <option value="admin">admin</option>
-              <option value="operator">operator</option>
+              <option value="admin">管理员</option>
+              <option value="operator">操作员</option>
             </select>
           </label>
           <label>
             状态
             <select name="status" defaultValue={status}>
               <option value="">全部</option>
-              <option value="active">active</option>
-              <option value="disabled">disabled</option>
+              <option value="active">启用</option>
+              <option value="disabled">停用</option>
             </select>
           </label>
           <div className="actions">
@@ -93,12 +102,12 @@ export default async function UsersPage({
 
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
-          <p className="empty">暂无后台用户。</p>
+          <p className="empty">
+            {role || status ? "没有符合筛选条件的账号。" : "暂无后台用户。"}
+          </p>
         ) : null}
         {!error && rows.length > 0 ? (
-          <>
-            <p className="meta">共 {rows.length} 条</p>
-            <div className="table-wrap">
+          <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
@@ -113,22 +122,23 @@ export default async function UsersPage({
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.username}>
-                      <td>{row.username}</td>
+                      <td className="emph">{row.username}</td>
                       <td>{row.display_name}</td>
-                      <td>{row.role}</td>
-                      <td>{row.status}</td>
                       <td>
-                        {row.last_login_at
-                          ? new Date(row.last_login_at).toLocaleString("zh-CN")
-                          : "—"}
+                        <Badge value={row.role}>{labelOf(ROLE_LABEL, row.role)}</Badge>
                       </td>
-                      <td>{new Date(row.created_at).toLocaleString("zh-CN")}</td>
+                      <td>
+                        <Badge value={row.status}>
+                          {labelOf(ACCOUNT_STATUS_LABEL, row.status)}
+                        </Badge>
+                      </td>
+                      <td>{formatTime(row.last_login_at)}</td>
+                      <td>{formatTime(row.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </>
+          </div>
         ) : null}
       </div>
     </>

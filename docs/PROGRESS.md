@@ -1,10 +1,10 @@
 # 项目进度
 
-最后更新：2026-10-22
+最后更新：2026-10-24
 
 ## 当前阶段
 
-数据库设计 + 落地 + 可视化验证。已建表 5 张。架构方向：本地 Web（页面 + API + PostgreSQL），板块含订单、客户、成本/价目、用户管理。
+Web 已可用：Next.js 端口 3721。客户新建/启停用/批量导入，订单下单（快照）与状态推进已落地。登录、价目/用户写入、报表未做。
 
 ## 已完成
 
@@ -23,6 +23,8 @@
 - [x] 迁移应用脚本（`scripts/apply-migration.sh`）
 - [x] 本机 PostgreSQL 18 服务配置（launchd 启动、pg_hba.conf 改为 trust）
 - [x] 文档体系（specs / decisions / PROGRESS / dbeaver-guide）
+- [x] Next.js Web 骨干（四页列表 + `/api/health`，端口 3721）
+- [x] 客户写入与批量导入；订单写入与状态推进
 
 ## 验证记录
 
@@ -97,10 +99,10 @@
 
 按优先级：
 
-1. 在 DBeaver 查看 `orders`、`app_users`
-2. 从 Excel 导入客户数据
-3. 搭本地 Web 骨架（页面板块 + API + 连库）
-4. 数据导入工具自动化
+1. 登录（基于 `app_users`）
+2. 价目 / 用户写入
+3. 复杂报表
+4. 在 DBeaver 补看结构（可选）
 
 ## 环境配置
 
@@ -139,3 +141,6 @@
 - 详细 spec：`docs/specs/2026-10-22-orders.md`
 - 后台账号与客户分离：`docs/decisions/0004-app-users.md`
 - 详细 spec：`docs/specs/2026-10-22-app-users.md`
+- Next.js Web 单体：`docs/decisions/0005-nextjs-web.md`
+- Web 骨干 spec：`docs/specs/2026-10-24-web-skeleton.md`
+- 客户/订单写入与导入：`docs/specs/2026-10-24-customer-order-writes.md`

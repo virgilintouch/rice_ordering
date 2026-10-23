@@ -4,30 +4,48 @@
 
 ## 当前状态
 
-- **已建表并验证（含 DBeaver）**：3 张（`customers`、`customer_addresses`、`rice_year_prices`）
-- **已建表（psql 已核对，尚未用 DBeaver 看）**：2 张（`orders`、`app_users`）
-- **业务代码**：暂未开始
+- **已建表**：5 张（`customers`、`customer_addresses`、`rice_year_prices`、`orders`、`app_users`）
+- **Web**：Next.js 端口 `3721`；客户/订单可写入；客户支持 Excel/CSV 批量导入；价目与用户仍为只读
+- **尚未做**：登录、价目/用户写入、复杂报表
 - **最新进度**：见 [docs/PROGRESS.md](docs/PROGRESS.md)
 - **DBeaver 连接与浏览**：见 [docs/dbeaver-guide.md](docs/dbeaver-guide.md)
+
+## 本地启动 Web
+
+1. 确认 PostgreSQL 已启动，库名 `rice_ordering`
+2. 复制环境变量：`cp .env.example .env.local`，按需填写（本机 trust 时密码可留空）
+3. 安装并启动：
+
+```bash
+npm install
+npm run dev
+```
+
+浏览器打开 [http://localhost:3721](http://localhost:3721)。健康检查：[http://localhost:3721/api/health](http://localhost:3721/api/health)。
+
+| 路径 | 说明 |
+|---|---|
+| `/orders` | 下单、状态推进、列表筛选 |
+| `/customers` | 新建客户、启停用、列表筛选 |
+| `/customers/import` | 批量导入（姓名/来源/收件人/电话/地址） |
+| `/prices` | 年份价目只读 |
+| `/users` | 后台用户只读（不含密码哈希） |
+
+Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-skeleton.md)。
 
 ## 项目结构
 
 ```
 大米订购系统/
-├── README.md                          # 你正在读
-├── LICENSE                            # MIT
-├── .gitignore
-├── .env.example                       # 环境变量示例（不放真实值）
+├── README.md
+├── package.json                       # Next.js 应用
+├── app/                               # 页面与 API
+├── lib/db.ts                          # PostgreSQL 连接
+├── .env.example
 ├── docs/
-│   ├── PROGRESS.md                    # 进度日志
-│   ├── dbeaver-guide.md               # DBeaver 连接与浏览指南
-│   ├── specs/                         # 已定稿表的设计 spec
-│   └── decisions/                     # 架构决策记录 (ADR)
 ├── db/
-│   ├── README.md                      # 数据库连接与迁移说明
-│   └── schema/                        # 迁移脚本
-├── sample-data/                       # 本地样本数据（已 gitignore，不上传）
-└── scripts/                           # 运维脚本
+├── sample-data/                       # 本地样本（gitignore）
+└── scripts/
 ```
 
 ## 数据模型摘要
@@ -115,7 +133,7 @@
 
 ## 给后续 AI 工具的接力说明
 
-1. **五张表已齐**（业务四张 + `app_users`）。下一步搭本地 Web 骨架。不要再设计 `shipping_rates`、`vacuum_rates`。
+1. **客户/订单写入与导入已齐**。下一步可做登录，或价目/用户写入、复杂报表。不要再设计 `shipping_rates`、`vacuum_rates`。
 2. **已建表的不要重做**。除非用户明确说要改。
 3. **新表的设计流程**：
    - 在对话中与用户对齐字段
@@ -136,9 +154,12 @@
 - [ ] `orders` 的 DBeaver 可视化验证
 - [x] `app_users` 设计定稿并建表（psql 已核对）
 - [ ] `app_users` 的 DBeaver 可视化验证
-- [ ] Web 前端（订单 / 客户 / 成本 / 用户管理）
-- [ ] Web 后端
-- [ ] 数据导入工具自动化
+- [x] Web 骨干（Next.js，端口 3721）
+- [x] 客户新建 / 启停用 / Excel·CSV 导入
+- [x] 订单新建（价格快照）/ 状态推进
+- [ ] 登录（`app_users`）
+- [ ] 价目与用户写入
+- [ ] 复杂报表
 
 ## 数据库
 

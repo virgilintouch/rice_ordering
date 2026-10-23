@@ -1,0 +1,205 @@
+import Link from "next/link";
+import { query } from "@/lib/db";
+import { CreateCustomerForm } from "@/app/customers/CreateCustomerForm";
+import { RowActions } from "@/app/customers/RowActions";
+
+export const dynamic = "force-dynamic";
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+type CustomerRow = {
+  id: number;
+  code: string;
+  name: string;
+  source: string;
+  status: string;
+  address_id: number | null;
+  recipient_name: string | null;
+  recipient_phone: string | null;
+  address: string | null;
+  label: string | null;
+};
+
+function one(v: string | string[] | undefined): string {
+  if (Array.isArray(v)) return v[0] ?? "";
+  return v ?? "";
+}
+
+/** 支持中英文逗号、顿号分隔：王，张 / 王,张 / 王、张 */
+function splitKeywords(raw: string): string[] {
+  return raw
+    .split(/[,，、]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+export default async function CustomersPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const sp = await searchParams;
+  const source = one(sp.source).trim();
+  const status = one(sp.status).trim();
+  const name = one(sp.name).trim();
+  const recipient = one(sp.recipient).trim();
+
+  const where: string[] = ["c.deleted_at IS NULL"];
+  const params: unknown[] = [];
+
+  if (source) {
+    params.push(source);
+    where.push(`c.source = $${params.length}`);
+  }
+  if (status) {
+    params.push(status);
+    where.push(`c.status = $${params.length}`);
+  }
+
+  // 多关键词：任一命中客户姓名或收件人姓名即显示（两框关键词合并）
+  const nameKeywords = [
+    ...new Set([...splitKeywords(name), ...splitKeywords(recipient)]),
+  ];
+  if (nameKeywords.length > 0) {
+    const parts = nameKeywords.map((kw) => {
+      params.push(`%${kw}%`);
+      const i = params.length;
+      return `(c.name ILIKE $${i} OR a.recipient_name ILIKE $${i})`;
+    });
+    where.push(`(${parts.join(" OR ")})`);
+  }
+
+  const sql = `
+    SELECT
+      c.id,
+      c.code,
+      c.name,
+      c.source,
+      c.status,
+      a.id AS address_id,
+      a.recipient_name,
+      a.recipient_phone,
+      a.address,
+      a.label
+    FROM customers c
+    LEFT JOIN customer_addresses a
+      ON a.customer_id = c.id AND a.is_active = true
+    WHERE ${where.join(" AND ")}
+    ORDER BY c.code, a.id NULLS LAST
+    LIMIT 200
+  `;
+
+  let rows: CustomerRow[] = [];
+  let error: string | null = null;
+  try {
+    rows = await query<CustomerRow>(sql, params);
+  } catch (e) {
+    error = e instanceof Error ? e.message : "查询失败";
+  }
+
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">客户</h1>
+          <p className="page-desc">
+            新建、导入、筛选与启停用。客户姓名 / 收件人支持「王，张」多词模糊：命中客户名或收件人即显示。最多 200 行。
+          </p>
+        </div>
+        <Link className="btn-secondary" href="/customers/import">
+          批量导入
+        </Link>
+      </div>
+
+      <div className="panel">
+        <CreateCustomerForm />
+      </div>
+
+      <div className="panel">
+        <form className="filters" method="get">
+          <label>
+            来源
+            <input name="source" defaultValue={source} />
+          </label>
+          <label>
+            状态
+            <select name="status" defaultValue={status}>
+              <option value="">全部</option>
+              <option value="active">active</option>
+              <option value="disabled">disabled</option>
+            </select>
+          </label>
+          <label>
+            客户姓名
+            <input
+              name="name"
+              defaultValue={name}
+              title="支持逗号分隔多个词，如 王，张；会同时匹配客户姓名与收件人"
+            />
+          </label>
+          <label>
+            收件人姓名
+            <input
+              name="recipient"
+              defaultValue={recipient}
+              title="支持逗号分隔多个词，如 王，张；会同时匹配客户姓名与收件人"
+            />
+          </label>
+          <div className="actions">
+            <button type="submit">筛选</button>
+            <a href="/customers">清空</a>
+          </div>
+        </form>
+
+        {error ? <p className="error">{error}</p> : null}
+        {!error && rows.length === 0 ? (
+          <p className="empty">暂无客户数据。</p>
+        ) : null}
+        {!error && rows.length > 0 ? (
+          <>
+            <p className="meta">共 {rows.length} 行</p>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>编号</th>
+                    <th>姓名</th>
+                    <th>来源</th>
+                    <th>收件人</th>
+                    <th>电话</th>
+                    <th>地址</th>
+                    <th>地址标签</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={`${row.id}-${row.address_id ?? "none"}`}>
+                      <td>{row.code}</td>
+                      <td>{row.name}</td>
+                      <td>{row.source}</td>
+                      <td>{row.recipient_name ?? "—"}</td>
+                      <td>{row.recipient_phone ?? "—"}</td>
+                      <td>{row.address ?? "—"}</td>
+                      <td>{row.label ?? "—"}</td>
+                      <td>{row.status}</td>
+                      <td>
+                        <RowActions
+                          customerId={row.id}
+                          addressId={row.address_id}
+                          customerName={row.name}
+                          status={row.status}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </>
+  );
+}

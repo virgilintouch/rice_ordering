@@ -118,7 +118,7 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
         </button>
       </div>
       {state.message ? (
-        <p className={state.ok ? "meta" : "error"}>{state.message}</p>
+        <p className={state.ok ? "ok" : "error"}>{state.message}</p>
       ) : null}
     </form>
   );

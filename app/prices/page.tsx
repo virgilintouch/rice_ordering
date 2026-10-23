@@ -77,11 +77,13 @@ export default async function PricesPage({
     /* 表单仍可用当前年作为默认 */
   }
 
+  const filtered = Boolean(year);
+
   return (
     <>
       <h1 className="page-title">成本 / 年份价目</h1>
       <p className="page-desc">
-        按年份维护成本、运费、真空费与四档售价；可筛选查看，也可新建一年价目。
+        按年份维护成本、运费、真空费与四档售价。表内金额为元/斤。可筛选查看，也可新建一年价目。
       </p>
 
       <div className="panel">
@@ -89,6 +91,12 @@ export default async function PricesPage({
       </div>
 
       <div className="panel">
+        <div className="panel-head">
+          <h2>价目列表</h2>
+          {!error && rows.length > 0 ? (
+            <p className="meta">共 {rows.length} 条</p>
+          ) : null}
+        </div>
         <form className="filters" method="get">
           <label>
             年份
@@ -102,44 +110,43 @@ export default async function PricesPage({
 
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
-          <p className="empty">暂无价目数据。</p>
+          <p className="empty">
+            {filtered ? "没有这一年的价目。" : "暂无价目。可在上方新建一年。"}
+          </p>
         ) : null}
         {!error && rows.length > 0 ? (
-          <>
-            <p className="meta">共 {rows.length} 条</p>
-            <div className="table-wrap">
+          <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>年份</th>
-                    <th>成本</th>
-                    <th>运费</th>
-                    <th>真空费</th>
-                    <th>零售普通</th>
-                    <th>零售真空</th>
-                    <th>VIP普通</th>
-                    <th>VIP真空</th>
-                    <th>每包斤数</th>
+                    <th className="num">成本</th>
+                    <th className="num">运费</th>
+                    <th className="num">真空费</th>
+                    <th className="num">零售普通</th>
+                    <th className="num">零售真空</th>
+                    <th className="num">VIP 普通</th>
+                    <th className="num">VIP 真空</th>
+                    <th className="num">每包斤数</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.year}>
-                      <td>{row.year}</td>
-                      <td>{row.rice_cost_per_jin}</td>
-                      <td>{row.shipping_fee_per_jin}</td>
-                      <td>{row.vacuum_fee_per_jin}</td>
-                      <td>{row.retail_plain_per_jin}</td>
-                      <td>{row.retail_vacuum_per_jin}</td>
-                      <td>{row.vip_plain_per_jin}</td>
-                      <td>{row.vip_vacuum_per_jin}</td>
-                      <td>{row.jin_per_pack}</td>
+                      <td className="emph">{row.year}</td>
+                      <td className="num">{row.rice_cost_per_jin}</td>
+                      <td className="num">{row.shipping_fee_per_jin}</td>
+                      <td className="num">{row.vacuum_fee_per_jin}</td>
+                      <td className="num">{row.retail_plain_per_jin}</td>
+                      <td className="num">{row.retail_vacuum_per_jin}</td>
+                      <td className="num">{row.vip_plain_per_jin}</td>
+                      <td className="num">{row.vip_vacuum_per_jin}</td>
+                      <td className="num">{row.jin_per_pack}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </>
+          </div>
         ) : null}
       </div>
     </>

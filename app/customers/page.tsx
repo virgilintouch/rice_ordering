@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { query } from "@/lib/db";
+import { Badge } from "@/app/components/Badge";
+import { ACCOUNT_STATUS_LABEL, labelOf } from "@/app/labels";
 import { CreateCustomerForm } from "@/app/customers/CreateCustomerForm";
 import { RowActions } from "@/app/customers/RowActions";
 
@@ -97,6 +99,8 @@ export default async function CustomersPage({
     error = e instanceof Error ? e.message : "查询失败";
   }
 
+  const filtered = Boolean(source || status || name || recipient);
+
   return (
     <>
       <div className="page-head">
@@ -116,6 +120,14 @@ export default async function CustomersPage({
       </div>
 
       <div className="panel">
+        <div className="panel-head">
+          <h2>客户列表</h2>
+          {!error && rows.length > 0 ? (
+            <p className="meta">
+              共 {rows.length} 行{rows.length >= 200 ? "（已达 200 行上限）" : ""}
+            </p>
+          ) : null}
+        </div>
         <form className="filters" method="get">
           <label>
             来源
@@ -125,8 +137,8 @@ export default async function CustomersPage({
             状态
             <select name="status" defaultValue={status}>
               <option value="">全部</option>
-              <option value="active">active</option>
-              <option value="disabled">disabled</option>
+              <option value="active">启用</option>
+              <option value="disabled">停用</option>
             </select>
           </label>
           <label>
@@ -153,12 +165,12 @@ export default async function CustomersPage({
 
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
-          <p className="empty">暂无客户数据。</p>
+          <p className="empty">
+            {filtered ? "没有符合筛选条件的客户。" : "暂无客户。可在上方新建，或批量导入。"}
+          </p>
         ) : null}
         {!error && rows.length > 0 ? (
-          <>
-            <p className="meta">共 {rows.length} 行</p>
-            <div className="table-wrap">
+          <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
@@ -176,14 +188,18 @@ export default async function CustomersPage({
                 <tbody>
                   {rows.map((row) => (
                     <tr key={`${row.id}-${row.address_id ?? "none"}`}>
-                      <td>{row.code}</td>
+                      <td className="emph">{row.code}</td>
                       <td>{row.name}</td>
                       <td>{row.source}</td>
                       <td>{row.recipient_name ?? "—"}</td>
                       <td>{row.recipient_phone ?? "—"}</td>
-                      <td>{row.address ?? "—"}</td>
+                      <td className="cell-wrap">{row.address ?? "—"}</td>
                       <td>{row.label ?? "—"}</td>
-                      <td>{row.status}</td>
+                      <td>
+                        <Badge value={row.status}>
+                          {labelOf(ACCOUNT_STATUS_LABEL, row.status)}
+                        </Badge>
+                      </td>
                       <td>
                         <RowActions
                           customerId={row.id}
@@ -196,8 +212,7 @@ export default async function CustomersPage({
                   ))}
                 </tbody>
               </table>
-            </div>
-          </>
+          </div>
         ) : null}
       </div>
     </>

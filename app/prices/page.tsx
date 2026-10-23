@@ -1,5 +1,7 @@
 import { query } from "@/lib/db";
 import { CreatePriceForm } from "@/app/prices/CreatePriceForm";
+import { INVALID_FILTER_MESSAGE, parseYear } from "@/lib/input";
+import { logServerError, publicErrorMessage } from "@/lib/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +34,17 @@ export default async function PricesPage({
 
   const where: string[] = [];
   const params: unknown[] = [];
+  let invalidFilter = false;
 
   if (year) {
-    params.push(Number(year));
-    where.push(`year = $${params.length}`);
+    const parsed = parseYear(year);
+    if (parsed == null) {
+      invalidFilter = true;
+      where.push("FALSE");
+    } else {
+      params.push(parsed);
+      where.push(`year = $${params.length}`);
+    }
   }
 
   const sql = `
@@ -60,7 +69,8 @@ export default async function PricesPage({
   try {
     rows = await query<PriceRow>(sql, params);
   } catch (e) {
-    error = e instanceof Error ? e.message : "查询失败";
+    logServerError("prices list", e);
+    error = publicErrorMessage(e, "查询失败");
   }
 
   const currentYear = new Date().getFullYear();
@@ -108,6 +118,7 @@ export default async function PricesPage({
           </div>
         </form>
 
+        {invalidFilter ? <p className="error">{INVALID_FILTER_MESSAGE}</p> : null}
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
           <p className="empty">

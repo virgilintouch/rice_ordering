@@ -1,6 +1,7 @@
 # 环境与密钥
 .env
-.env.local
+.env.*
+!.env.example
 *.pem
 *.key
 

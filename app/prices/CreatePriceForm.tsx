@@ -5,6 +5,7 @@ import {
   createPriceYearAction,
   type ActionState,
 } from "@/app/prices/actions";
+import { LIMITS } from "@/lib/limits";
 
 const initial: ActionState = { ok: false, message: "" };
 
@@ -37,6 +38,7 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
             type="number"
             required
             min={0.01}
+            max={LIMITS.moneyMax}
             step={0.01}
           />
         </label>
@@ -47,6 +49,7 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
             type="number"
             required
             min={0.01}
+            max={LIMITS.moneyMax}
             step={0.01}
           />
         </label>
@@ -57,6 +60,7 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
             type="number"
             required
             min={0.01}
+            max={LIMITS.moneyMax}
             step={0.01}
           />
         </label>
@@ -67,6 +71,7 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
             type="number"
             required
             min={0.01}
+            max={LIMITS.moneyMax}
             step={0.01}
           />
         </label>
@@ -77,6 +82,7 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
             type="number"
             required
             min={0.01}
+            max={LIMITS.moneyMax}
             step={0.01}
           />
         </label>
@@ -87,6 +93,7 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
             type="number"
             required
             min={0.01}
+            max={LIMITS.moneyMax}
             step={0.01}
           />
         </label>
@@ -97,6 +104,7 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
             type="number"
             required
             min={0.01}
+            max={LIMITS.moneyMax}
             step={0.01}
           />
         </label>
@@ -107,6 +115,7 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
             type="number"
             required
             min={1}
+            max={LIMITS.jinPerPackMax}
             step={1}
             defaultValue={10}
           />

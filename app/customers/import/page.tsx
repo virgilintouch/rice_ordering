@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { importCustomersAction } from "@/app/customers/actions";
+import { clipDisplay } from "@/lib/input";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -14,12 +15,12 @@ export default async function CustomerImportPage({
   searchParams: SearchParams;
 }) {
   const sp = await searchParams;
-  const error = one(sp.error);
+  const error = clipDisplay(one(sp.error), 300);
   const created = one(sp.created);
   const addresses = one(sp.addresses);
   const skipped = one(sp.skipped);
   const failed = one(sp.failed);
-  const failedDetail = one(sp.failedDetail);
+  const failedDetail = clipDisplay(one(sp.failedDetail), 2000);
   const hasResult = created !== "" || addresses !== "" || skipped !== "" || failed !== "";
 
   return (

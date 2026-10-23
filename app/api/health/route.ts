@@ -16,12 +16,11 @@ export async function GET() {
       portHint: process.env.APP_PORT || "3721",
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown error";
+    console.error("[health]", error);
     return NextResponse.json(
       {
         status: "error",
         database: "down",
-        error: message,
       },
       { status: 503 },
     );

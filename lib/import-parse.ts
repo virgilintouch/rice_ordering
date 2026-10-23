@@ -1,5 +1,7 @@
 import * as XLSX from "xlsx";
 import type { ImportRow } from "@/lib/customers";
+import { LIMITS } from "@/lib/limits";
+import { PublicError } from "@/lib/public-error";
 
 const HEADER_MAP: Record<string, keyof ImportRow> = {
   姓名: "name",
@@ -25,12 +27,21 @@ export function parseCustomerImportFile(
 ): ImportRow[] {
   const lower = filename.toLowerCase();
   if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls") && !lower.endsWith(".csv")) {
-    throw new Error("仅支持 .xlsx / .xls / .csv");
+    throw new PublicError("仅支持 .xlsx / .xls / .csv");
   }
 
-  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const workbook = XLSX.read(buffer, {
+    type: "buffer",
+    cellFormula: false,
+    cellHTML: false,
+    cellNF: false,
+    cellStyles: false,
+    bookVBA: false,
+    bookFiles: false,
+    sheetRows: LIMITS.importMaxRows + 2,
+  });
   const sheetName = workbook.SheetNames[0];
-  if (!sheetName) throw new Error("文件没有工作表");
+  if (!sheetName) throw new PublicError("文件没有工作表");
   const sheet = workbook.Sheets[sheetName];
   const matrix = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
     header: 1,
@@ -38,7 +49,7 @@ export function parseCustomerImportFile(
     raw: false,
   });
 
-  if (matrix.length < 2) throw new Error("除表头外没有数据行");
+  if (matrix.length < 2) throw new PublicError("除表头外没有数据行");
 
   const header = (matrix[0] || []).map((h) => cellText(h));
   const indexes: Partial<Record<keyof ImportRow, number>> = {};
@@ -56,12 +67,12 @@ export function parseCustomerImportFile(
   ];
   for (const key of required) {
     if (indexes[key] == null) {
-      throw new Error("表头必须包含：姓名、来源、收件人、电话、地址");
+      throw new PublicError("表头必须包含：姓名、来源、收件人、电话、地址");
     }
   }
 
-  if (matrix.length - 1 > 500) {
-    throw new Error("单次最多导入 500 行");
+  if (matrix.length - 1 > LIMITS.importMaxRows) {
+    throw new PublicError(`单次最多导入 ${LIMITS.importMaxRows} 行`);
   }
 
   const rows: ImportRow[] = [];

@@ -5,24 +5,26 @@
 ## 当前状态
 
 - **已建表**：5 张（`customers`、`customer_addresses`、`rice_year_prices`、`orders`、`app_users`）
-- **Web**：Next.js 端口 `3721`；客户 / 订单 / 年份价目可写入；客户支持 Excel/CSV 批量导入；用户页仍为只读
-- **已做**：前端可读性调整（导航、表格、表单、空态与错误态；业务逻辑未改）
-- **尚未做**（优先级）：安全性评估与优化 → 登录 → 价目修改/用户写入 → 简单报表
+- **Web**：Next.js 端口 `3721`，默认只监听 `127.0.0.1`；客户 / 订单 / 年份价目可写入；客户支持 Excel/CSV 批量导入；用户页仍为只读，且查询不含 `password_hash`
+- **已做**：前端可读性调整（导航、表格、表单、空态与错误态；业务逻辑未改）。首轮安全加固已落地（本机绑定、写入校验、错误信息不回传数据库原文、基础响应头），仍无登录。详见 [docs/PROGRESS.md](docs/PROGRESS.md)
+- **尚未做**（优先级）：登录 → 价目修改/用户写入 → 简单报表
 - **最新进度**：见 [docs/PROGRESS.md](docs/PROGRESS.md)
 - **DBeaver 连接与浏览**：见 [docs/dbeaver-guide.md](docs/dbeaver-guide.md)
 
 ## 本地启动 Web
 
 1. 确认 PostgreSQL 已启动，库名 `rice_ordering`；按 [db/README.md](db/README.md) 执行 `db/schema/` 迁移
-2. 复制环境变量：`cp .env.example .env.local`，按需填写（本机 trust 时密码可留空）
-3. 安装并启动：
+2. 复制环境变量：`cp .env.example .env.local`，按需填写（本机 trust 时密码可留空）。`.env` / `.env.local` 不要入库
+3. 安装并启动（只监听本机回环，不对局域网开放）：
 
 ```bash
 npm install
 npm run dev
 ```
 
-浏览器打开 [http://localhost:3721](http://localhost:3721)。健康检查：[http://localhost:3721/api/health](http://localhost:3721/api/health)。
+浏览器打开 [http://127.0.0.1:3721](http://127.0.0.1:3721)。健康检查：[http://127.0.0.1:3721/api/health](http://127.0.0.1:3721/api/health)。
+
+若确实要给局域网使用，需先做登录，再显式改用 `next dev --hostname 0.0.0.0 -p 3721`。在那之前，未登录的客户、订单、价目写入对能访问该地址的任何人都开放。PostgreSQL 保持只监听本机，`trust` 认证不要对局域网开放。
 
 空库时请先在「成本」新建年份价目、在「客户」新建或导入客户，再去「订单」下单。仓库**不含**真实业务数据与 `sample-data/` 样本文件。
 
@@ -137,7 +139,7 @@ Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-
 
 ## 给后续 AI 工具的接力说明
 
-1. **客户 / 订单 / 价目写入与导入已齐**。后续优先顺序：前端美化 → 安全性评估与优化 → 登录 → 价目修改/用户写入 → 简单报表。不建仓库内脱敏种子（见 PROGRESS）；不做 DBeaver 补看。不要再设计 `shipping_rates`、`vacuum_rates`。
+1. **客户 / 订单 / 价目写入与导入已齐**。前端美化与首轮安全加固已做。后续优先顺序：登录 → 价目修改/用户写入 → 简单报表。登录前不要把 Web 或数据库暴露到局域网。不建仓库内脱敏种子（见 PROGRESS）；不做 DBeaver 补看。不要再设计 `shipping_rates`、`vacuum_rates`。
 2. **已建表的不要重做**。除非用户明确说要改。
 3. **新表的设计流程**：
    - 在对话中与用户对齐字段
@@ -162,7 +164,7 @@ Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-
 - [x] 年份价目新建
 - [x] 脱敏种子检查：现阶段不建仓库内 seed；本机 `sample-data/` 不入库
 - [x] 1. 前端界面美化调整（可读性与日常操作，不改业务逻辑）
-- [ ] 2. 整体代码安全性评估与优化
+- [x] 2. 整体代码安全性评估与首轮加固（仍无登录）
 - [ ] 3. 登录（`app_users`）
 - [ ] 4. 价目修改 / 用户写入
 - [ ] 5. 简单报表

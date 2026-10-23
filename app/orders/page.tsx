@@ -5,6 +5,9 @@ import { formatTime } from "@/app/format";
 import { ORDER_STATUS_LABEL, PRICE_TIER_LABEL, labelOf } from "@/app/labels";
 import { CreateOrderForm } from "@/app/orders/CreateOrderForm";
 import { advanceOrderAction } from "@/app/orders/actions";
+import { ilikeContains, INVALID_FILTER_MESSAGE, isIsoDate } from "@/lib/input";
+import { LIMITS } from "@/lib/limits";
+import { logServerError, publicErrorMessage } from "@/lib/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -48,22 +51,45 @@ export default async function OrdersPage({
 
   const where: string[] = [];
   const params: unknown[] = [];
+  let invalidFilter = false;
+  const markInvalid = () => {
+    invalidFilter = true;
+    where.push("FALSE");
+  };
 
   if (status) {
-    params.push(status);
-    where.push(`o.status = $${params.length}`);
+    if (
+      status !== "ordered" &&
+      status !== "paid" &&
+      status !== "shipped" &&
+      status !== "delivered"
+    ) {
+      markInvalid();
+    } else {
+      params.push(status);
+      where.push(`o.status = $${params.length}`);
+    }
   }
   if (customer) {
-    params.push(`%${customer}%`);
-    where.push(`c.name ILIKE $${params.length}`);
+    if (customer.length > LIMITS.keywordMax) markInvalid();
+    else {
+      params.push(ilikeContains(customer));
+      where.push(`c.name ILIKE $${params.length} ESCAPE '\\'`);
+    }
   }
   if (from) {
-    params.push(from);
-    where.push(`o.ordered_at::date >= $${params.length}::date`);
+    if (!isIsoDate(from)) markInvalid();
+    else {
+      params.push(from);
+      where.push(`o.ordered_at::date >= $${params.length}::date`);
+    }
   }
   if (to) {
-    params.push(to);
-    where.push(`o.ordered_at::date <= $${params.length}::date`);
+    if (!isIsoDate(to)) markInvalid();
+    else {
+      params.push(to);
+      where.push(`o.ordered_at::date <= $${params.length}::date`);
+    }
   }
 
   const sql = `
@@ -132,7 +158,8 @@ export default async function OrdersPage({
        ORDER BY year DESC`,
     );
   } catch (e) {
-    error = e instanceof Error ? e.message : "查询失败";
+    logServerError("orders list", e);
+    error = publicErrorMessage(e, "查询失败");
   }
 
   const filtered = Boolean(status || customer || from || to);
@@ -190,6 +217,7 @@ export default async function OrdersPage({
           </div>
         </form>
 
+        {invalidFilter ? <p className="error">{INVALID_FILTER_MESSAGE}</p> : null}
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
           <p className="empty">

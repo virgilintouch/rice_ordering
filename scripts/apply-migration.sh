@@ -4,7 +4,7 @@
 #
 # 适配本机 PostgreSQL 18 EDB 安装:
 #   - psql 在 /Library/PostgreSQL/18/bin/
-#   - pg_hba.conf 已改为 trust (本地连接免密码)
+#   - pg_hba.conf 已改为 trust (仅本机连接免密码；不要对局域网开放 trust)
 #   - 不需要 sudo, 以当前用户跑 psql, 通过 -U postgres 走 trust 认证
 #   - 走 unix socket (socket 在 /tmp/.s.PGSQL.5432)
 set -euo pipefail

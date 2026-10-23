@@ -12,7 +12,7 @@ export default function HomePage() {
     <>
       <h1 className="page-title">本地台账</h1>
       <p className="page-desc">
-        日常处理订单、客户和年份价目。登录与报表尚未开放。
+        日常处理订单、客户和年份价目。尚未登录，用户页只读且不含密码哈希。请只在本机使用，不要把本站暴露到局域网。
       </p>
       <div className="home-grid">
         {cards.map((card) => (

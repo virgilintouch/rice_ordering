@@ -1,4 +1,7 @@
 import { query } from "@/lib/db";
+import { assertMoneyNumber } from "@/lib/input";
+import { LIMITS } from "@/lib/limits";
+import { PublicError } from "@/lib/public-error";
 
 export type CreatePriceYearInput = {
   year: number;
@@ -12,30 +15,28 @@ export type CreatePriceYearInput = {
   jinPerPack: number;
 };
 
-function assertPositiveMoney(label: string, value: number): void {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`${label}须大于 0`);
-  }
-}
-
 export async function createPriceYear(
   input: CreatePriceYearInput,
 ): Promise<{ year: number }> {
   const year = input.year;
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
-    throw new Error("年份须为 2000–2100 的整数");
+    throw new PublicError("年份须为 2000–2100 的整数");
   }
 
-  assertPositiveMoney("大米成本", input.riceCostPerJin);
-  assertPositiveMoney("运费", input.shippingFeePerJin);
-  assertPositiveMoney("真空费", input.vacuumFeePerJin);
-  assertPositiveMoney("零售普通价", input.retailPlainPerJin);
-  assertPositiveMoney("零售真空价", input.retailVacuumPerJin);
-  assertPositiveMoney("VIP 普通价", input.vipPlainPerJin);
-  assertPositiveMoney("VIP 真空价", input.vipVacuumPerJin);
+  assertMoneyNumber(input.riceCostPerJin, "大米成本");
+  assertMoneyNumber(input.shippingFeePerJin, "运费");
+  assertMoneyNumber(input.vacuumFeePerJin, "真空费");
+  assertMoneyNumber(input.retailPlainPerJin, "零售普通价");
+  assertMoneyNumber(input.retailVacuumPerJin, "零售真空价");
+  assertMoneyNumber(input.vipPlainPerJin, "VIP 普通价");
+  assertMoneyNumber(input.vipVacuumPerJin, "VIP 真空价");
 
-  if (!Number.isInteger(input.jinPerPack) || input.jinPerPack <= 0) {
-    throw new Error("每包斤数须为正整数");
+  if (
+    !Number.isInteger(input.jinPerPack) ||
+    input.jinPerPack <= 0 ||
+    input.jinPerPack > LIMITS.jinPerPackMax
+  ) {
+    throw new PublicError(`每包斤数须为 1–${LIMITS.jinPerPackMax} 的整数`);
   }
 
   const existing = await query<{ year: number }>(
@@ -43,7 +44,7 @@ export async function createPriceYear(
     [year],
   );
   if (existing.length > 0) {
-    throw new Error(`${year} 年价目已存在`);
+    throw new PublicError(`${year} 年价目已存在`);
   }
 
   await query(

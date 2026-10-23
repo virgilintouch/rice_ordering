@@ -5,6 +5,7 @@ import {
   updateCustomerAction,
   type ActionState,
 } from "@/app/customers/actions";
+import { LIMITS } from "@/lib/limits";
 
 const initial: ActionState = { ok: false, message: "" };
 
@@ -33,11 +34,21 @@ export function EditCustomerForm({ values }: { values: EditCustomerValues }) {
       <div className="filters">
         <label>
           客户姓名 *
-          <input name="name" required maxLength={64} defaultValue={values.name} />
+          <input
+            name="name"
+            required
+            maxLength={LIMITS.customerName}
+            defaultValue={values.name}
+          />
         </label>
         <label>
           来源 *
-          <input name="source" required defaultValue={values.source} />
+          <input
+            name="source"
+            required
+            maxLength={LIMITS.source}
+            defaultValue={values.source}
+          />
         </label>
         <label>
           状态
@@ -48,24 +59,40 @@ export function EditCustomerForm({ values }: { values: EditCustomerValues }) {
         </label>
         <label>
           备注
-          <input name="note" defaultValue={values.note} />
+          <input name="note" maxLength={LIMITS.note} defaultValue={values.note} />
         </label>
         <label>
           收件人 *
-          <input name="recipientName" required defaultValue={values.recipientName} />
+          <input
+            name="recipientName"
+            required
+            maxLength={LIMITS.recipientName}
+            defaultValue={values.recipientName}
+          />
         </label>
         <label>
           电话 *
-          <input name="recipientPhone" required defaultValue={values.recipientPhone} />
+          <input
+            name="recipientPhone"
+            required
+            maxLength={LIMITS.recipientPhone}
+            defaultValue={values.recipientPhone}
+          />
         </label>
         <label>
           地址标签
-          <input name="label" defaultValue={values.label} />
+          <input name="label" maxLength={LIMITS.label} defaultValue={values.label} />
         </label>
       </div>
       <label className="full">
         地址 *
-        <textarea name="address" required rows={2} defaultValue={values.address} />
+        <textarea
+          name="address"
+          required
+          rows={2}
+          maxLength={LIMITS.address}
+          defaultValue={values.address}
+        />
       </label>
       <div className="actions">
         <button type="submit" disabled={pending}>

@@ -5,6 +5,7 @@ import {
   createCustomerAction,
   type ActionState,
 } from "@/app/customers/actions";
+import { LIMITS } from "@/lib/limits";
 
 const initial: ActionState = { ok: false, message: "" };
 
@@ -17,32 +18,32 @@ export function CreateCustomerForm() {
       <div className="filters">
         <label>
           姓名 *
-          <input name="name" required maxLength={64} />
+          <input name="name" required maxLength={LIMITS.customerName} />
         </label>
         <label>
           来源 *
-          <input name="source" required />
+          <input name="source" required maxLength={LIMITS.source} />
         </label>
         <label>
           备注
-          <input name="note" />
+          <input name="note" maxLength={LIMITS.note} />
         </label>
         <label>
           收件人 *
-          <input name="recipientName" required />
+          <input name="recipientName" required maxLength={LIMITS.recipientName} />
         </label>
         <label>
           电话 *
-          <input name="recipientPhone" required />
+          <input name="recipientPhone" required maxLength={LIMITS.recipientPhone} />
         </label>
         <label>
           地址标签
-          <input name="label" />
+          <input name="label" maxLength={LIMITS.label} />
         </label>
       </div>
       <label className="full">
         地址 *
-        <textarea name="address" required rows={2} />
+        <textarea name="address" required rows={2} maxLength={LIMITS.address} />
       </label>
       <div className="actions">
         <button type="submit" disabled={pending}>

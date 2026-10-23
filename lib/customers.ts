@@ -1,4 +1,7 @@
 import { query, withTransaction } from "@/lib/db";
+import { optionalText, requiredId, requiredText } from "@/lib/input";
+import { LIMITS } from "@/lib/limits";
+import { logServerError, PublicError, publicErrorMessage } from "@/lib/public-error";
 
 export type CreateCustomerInput = {
   name: string;
@@ -25,15 +28,13 @@ async function nextCustomerCode(
 export async function createCustomerWithAddress(
   input: CreateCustomerInput,
 ): Promise<{ customerId: number; code: string }> {
-  const name = input.name.trim();
-  const source = input.source.trim();
-  const recipientName = input.recipientName.trim();
-  const recipientPhone = input.recipientPhone.trim();
-  const address = input.address.trim();
-
-  if (!name || !source || !recipientName || !recipientPhone || !address) {
-    throw new Error("姓名、来源、收件人、电话、地址均为必填");
-  }
+  const name = requiredText(input.name, "姓名", LIMITS.customerName);
+  const source = requiredText(input.source, "来源", LIMITS.source);
+  const note = optionalText(input.note, "备注", LIMITS.note);
+  const recipientName = requiredText(input.recipientName, "收件人", LIMITS.recipientName);
+  const recipientPhone = requiredText(input.recipientPhone, "电话", LIMITS.recipientPhone);
+  const address = requiredText(input.address, "地址", LIMITS.address);
+  const label = optionalText(input.label, "地址标签", LIMITS.label);
 
   return withTransaction(async (q) => {
     const existing = await q<{ id: number }>(
@@ -41,7 +42,7 @@ export async function createCustomerWithAddress(
       [name],
     );
     if (existing[0]) {
-      throw new Error(`客户姓名已存在：${name}`);
+      throw new PublicError(`客户姓名已存在：${name}`);
     }
 
     const code = await nextCustomerCode(q);
@@ -49,7 +50,7 @@ export async function createCustomerWithAddress(
       `INSERT INTO customers (code, name, source, note, status)
        VALUES ($1, $2, $3, $4, 'active')
        RETURNING id`,
-      [code, name, source, input.note?.trim() || null],
+      [code, name, source, note],
     );
     const customerId = customers[0].id;
 
@@ -62,7 +63,7 @@ export async function createCustomerWithAddress(
         recipientName,
         recipientPhone,
         address,
-        input.label?.trim() || null,
+        label,
       ],
     );
 
@@ -74,15 +75,19 @@ export async function setCustomerStatus(
   customerId: number,
   status: "active" | "disabled",
 ): Promise<void> {
+  const id = requiredId(customerId, "客户");
+  if (status !== "active" && status !== "disabled") {
+    throw new PublicError("状态无效");
+  }
   const rows = await query(
     `UPDATE customers
      SET status = $2, updated_at = NOW()
      WHERE id = $1 AND deleted_at IS NULL
      RETURNING id`,
-    [customerId, status],
+    [id, status],
   );
   if (!rows[0]) {
-    throw new Error("客户不存在或已删除");
+    throw new PublicError("客户不存在或已删除");
   }
 }
 
@@ -102,17 +107,18 @@ export type UpdateCustomerAddressInput = {
 export async function updateCustomerAndAddress(
   input: UpdateCustomerAddressInput,
 ): Promise<void> {
-  const name = input.name.trim();
-  const source = input.source.trim();
-  const recipientName = input.recipientName.trim();
-  const recipientPhone = input.recipientPhone.trim();
-  const address = input.address.trim();
+  const customerId = requiredId(input.customerId, "客户");
+  const addressId = requiredId(input.addressId, "地址");
+  const name = requiredText(input.name, "姓名", LIMITS.customerName);
+  const source = requiredText(input.source, "来源", LIMITS.source);
+  const note = optionalText(input.note, "备注", LIMITS.note);
+  const recipientName = requiredText(input.recipientName, "收件人", LIMITS.recipientName);
+  const recipientPhone = requiredText(input.recipientPhone, "电话", LIMITS.recipientPhone);
+  const address = requiredText(input.address, "地址", LIMITS.address);
+  const label = optionalText(input.label, "地址标签", LIMITS.label);
 
-  if (!name || !source || !recipientName || !recipientPhone || !address) {
-    throw new Error("姓名、来源、收件人、电话、地址均为必填");
-  }
   if (input.status !== "active" && input.status !== "disabled") {
-    throw new Error("状态无效");
+    throw new PublicError("状态无效");
   }
 
   await withTransaction(async (q) => {
@@ -120,10 +126,10 @@ export async function updateCustomerAndAddress(
       `SELECT id FROM customers
        WHERE name = $1 AND deleted_at IS NULL AND id <> $2
        LIMIT 1`,
-      [name, input.customerId],
+      [name, customerId],
     );
     if (dup[0]) {
-      throw new Error(`客户姓名已存在：${name}`);
+      throw new PublicError(`客户姓名已存在：${name}`);
     }
 
     const customers = await q(
@@ -131,10 +137,10 @@ export async function updateCustomerAndAddress(
        SET name = $2, source = $3, note = $4, status = $5, updated_at = NOW()
        WHERE id = $1 AND deleted_at IS NULL
        RETURNING id`,
-      [input.customerId, name, source, input.note?.trim() || null, input.status],
+      [customerId, name, source, note, input.status],
     );
     if (!customers[0]) {
-      throw new Error("客户不存在或已删除");
+      throw new PublicError("客户不存在或已删除");
     }
 
     const addresses = await q(
@@ -146,23 +152,17 @@ export async function updateCustomerAndAddress(
            updated_at = NOW()
        WHERE id = $1 AND customer_id = $2
        RETURNING id`,
-      [
-        input.addressId,
-        input.customerId,
-        recipientName,
-        recipientPhone,
-        address,
-        input.label?.trim() || null,
-      ],
+      [addressId, customerId, recipientName, recipientPhone, address, label],
     );
     if (!addresses[0]) {
-      throw new Error("地址不存在或不属于该客户");
+      throw new PublicError("地址不存在或不属于该客户");
     }
   });
 }
 
 /** 软删除客户（不物理删，避免影响历史订单外键） */
 export async function softDeleteCustomer(customerId: number): Promise<void> {
+  const id = requiredId(customerId, "客户");
   const rows = await query(
     `UPDATE customers
      SET deleted_at = NOW(),
@@ -170,10 +170,10 @@ export async function softDeleteCustomer(customerId: number): Promise<void> {
          updated_at = NOW()
      WHERE id = $1 AND deleted_at IS NULL
      RETURNING id`,
-    [customerId],
+    [id],
   );
   if (!rows[0]) {
-    throw new Error("客户不存在或已删除");
+    throw new PublicError("客户不存在或已删除");
   }
 }
 
@@ -220,11 +220,30 @@ export async function importCustomerRows(
       continue;
     }
 
+    let cleanName: string;
+    let cleanSource: string;
+    let cleanRecipientName: string;
+    let cleanRecipientPhone: string;
+    let cleanAddress: string;
+    try {
+      cleanName = requiredText(name, "姓名", LIMITS.customerName);
+      cleanSource = requiredText(source, "来源", LIMITS.source);
+      cleanRecipientName = requiredText(row.recipientName, "收件人", LIMITS.recipientName);
+      cleanRecipientPhone = requiredText(row.recipientPhone, "电话", LIMITS.recipientPhone);
+      cleanAddress = requiredText(row.address, "地址", LIMITS.address);
+    } catch (error) {
+      result.failed.push({
+        line,
+        reason: publicErrorMessage(error, "导入失败"),
+      });
+      continue;
+    }
+
     try {
       await withTransaction(async (q) => {
         const existing = await q<{ id: number }>(
           `SELECT id FROM customers WHERE name = $1 AND deleted_at IS NULL LIMIT 1`,
-          [name],
+          [cleanName],
         );
 
         let customerId: number;
@@ -236,7 +255,7 @@ export async function importCustomerRows(
             `INSERT INTO customers (code, name, source, status)
              VALUES ($1, $2, $3, 'active')
              RETURNING id`,
-            [code, name, source],
+            [code, cleanName, cleanSource],
           );
           customerId = created[0].id;
           result.createdCustomers += 1;
@@ -249,7 +268,7 @@ export async function importCustomerRows(
              AND recipient_phone = $3
              AND address = $4
            LIMIT 1`,
-          [customerId, recipientName, recipientPhone, address],
+          [customerId, cleanRecipientName, cleanRecipientPhone, cleanAddress],
         );
         if (dup[0]) {
           result.skipped += 1;
@@ -266,14 +285,15 @@ export async function importCustomerRows(
           `INSERT INTO customer_addresses
              (customer_id, recipient_name, recipient_phone, address, is_default, is_active)
            VALUES ($1, $2, $3, $4, $5, true)`,
-          [customerId, recipientName, recipientPhone, address, isDefault],
+          [customerId, cleanRecipientName, cleanRecipientPhone, cleanAddress, isDefault],
         );
         result.addedAddresses += 1;
       });
     } catch (error) {
+      logServerError("importCustomerRows", error);
       result.failed.push({
         line,
-        reason: error instanceof Error ? error.message : "导入失败",
+        reason: publicErrorMessage(error, "导入失败"),
       });
     }
   }

@@ -4,6 +4,9 @@ import { Badge } from "@/app/components/Badge";
 import { ACCOUNT_STATUS_LABEL, labelOf } from "@/app/labels";
 import { CreateCustomerForm } from "@/app/customers/CreateCustomerForm";
 import { RowActions } from "@/app/customers/RowActions";
+import { ilikeContains, INVALID_FILTER_MESSAGE } from "@/lib/input";
+import { LIMITS } from "@/lib/limits";
+import { logServerError, publicErrorMessage } from "@/lib/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +34,7 @@ function one(v: string | string[] | undefined): string {
 function splitKeywords(raw: string): string[] {
   return raw
     .split(/[,，、]+/)
-    .map((s) => s.trim())
+    .map((s) => s.replace(/\u0000/g, "").trim())
     .filter(Boolean);
 }
 
@@ -48,25 +51,41 @@ export default async function CustomersPage({
 
   const where: string[] = ["c.deleted_at IS NULL"];
   const params: unknown[] = [];
+  let invalidFilter = false;
+  const markInvalid = () => {
+    invalidFilter = true;
+    where.push("FALSE");
+  };
 
   if (source) {
-    params.push(source);
-    where.push(`c.source = $${params.length}`);
+    if (source.length > LIMITS.source) markInvalid();
+    else {
+      params.push(source);
+      where.push(`c.source = $${params.length}`);
+    }
   }
   if (status) {
-    params.push(status);
-    where.push(`c.status = $${params.length}`);
+    if (status !== "active" && status !== "disabled") markInvalid();
+    else {
+      params.push(status);
+      where.push(`c.status = $${params.length}`);
+    }
   }
 
   // 多关键词：任一命中客户姓名或收件人姓名即显示（两框关键词合并）
   const nameKeywords = [
     ...new Set([...splitKeywords(name), ...splitKeywords(recipient)]),
   ];
-  if (nameKeywords.length > 0) {
+  if (
+    nameKeywords.length > LIMITS.keywordCountMax ||
+    nameKeywords.some((kw) => kw.length > LIMITS.keywordMax)
+  ) {
+    markInvalid();
+  } else if (nameKeywords.length > 0) {
     const parts = nameKeywords.map((kw) => {
-      params.push(`%${kw}%`);
+      params.push(ilikeContains(kw));
       const i = params.length;
-      return `(c.name ILIKE $${i} OR a.recipient_name ILIKE $${i})`;
+      return `(c.name ILIKE $${i} ESCAPE '\\' OR a.recipient_name ILIKE $${i} ESCAPE '\\')`;
     });
     where.push(`(${parts.join(" OR ")})`);
   }
@@ -96,7 +115,8 @@ export default async function CustomersPage({
   try {
     rows = await query<CustomerRow>(sql, params);
   } catch (e) {
-    error = e instanceof Error ? e.message : "查询失败";
+    logServerError("customers list", e);
+    error = publicErrorMessage(e, "查询失败");
   }
 
   const filtered = Boolean(source || status || name || recipient);
@@ -163,6 +183,7 @@ export default async function CustomersPage({
           </div>
         </form>
 
+        {invalidFilter ? <p className="error">{INVALID_FILTER_MESSAGE}</p> : null}
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
           <p className="empty">

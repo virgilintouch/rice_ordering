@@ -4,6 +4,8 @@ import { query } from "@/lib/db";
 import { formatTime } from "@/app/format";
 import { ORDER_STATUS_LABEL, PRICE_TIER_LABEL, labelOf } from "@/app/labels";
 import { OrderDetailActions } from "@/app/orders/[id]/OrderDetailActions";
+import { parseId } from "@/lib/input";
+import { logServerError } from "@/lib/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +29,7 @@ type OrderDetail = {
 };
 
 async function loadOrder(orderId: number): Promise<OrderDetail | null> {
-  if (!Number.isInteger(orderId) || orderId <= 0) return null;
+  if (!Number.isSafeInteger(orderId) || orderId <= 0) return null;
   const rows = await query<OrderDetail>(
     `SELECT
        o.id,
@@ -60,9 +62,17 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id: idRaw } = await params;
-  const order = await loadOrder(Number(idRaw));
-  if (!order) return { title: "订单详情" };
-  return { title: `订单号-${order.order_no}` };
+  const id = parseId(idRaw);
+  if (id == null) return { title: "订单详情" };
+  try {
+    const order = await loadOrder(id);
+    if (!order) return { title: "订单详情" };
+    const titleNo = order.order_no.replace(/[^\w-]/g, "").slice(0, 32);
+    return { title: titleNo ? `订单号-${titleNo}` : "订单详情" };
+  } catch (error) {
+    logServerError("orderDetailMetadata", error);
+    return { title: "订单详情" };
+  }
 }
 
 export default async function OrderDetailPage({
@@ -71,7 +81,20 @@ export default async function OrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: idRaw } = await params;
-  const order = await loadOrder(Number(idRaw));
+  const id = parseId(idRaw);
+  if (id == null) notFound();
+  let order: OrderDetail | null;
+  try {
+    order = await loadOrder(id);
+  } catch (error) {
+    logServerError("orderDetail", error);
+    return (
+      <div className="order-detail-page">
+        <h1 className="page-title">订单详情</h1>
+        <p className="error">加载失败</p>
+      </div>
+    );
+  }
   if (!order) notFound();
 
   const fields: { label: string; value: string; wide?: boolean }[] = [

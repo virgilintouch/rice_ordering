@@ -8,6 +8,9 @@ declare global {
 function createPool(): Pool {
   const host = process.env.DB_HOST || "localhost";
   const port = Number(process.env.DB_PORT || "5432");
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("DB_PORT must be an integer from 1 to 65535");
+  }
   const database = process.env.DB_NAME || "rice_ordering";
   const user = process.env.DB_USER || "postgres";
   const password = process.env.DB_PASSWORD || "";
@@ -19,6 +22,12 @@ function createPool(): Pool {
     user,
     password,
     max: 5,
+    application_name: "rice_ordering",
+    connectionTimeoutMillis: 5_000,
+    statement_timeout: 10_000,
+    query_timeout: 10_000,
+    lock_timeout: 5_000,
+    idle_in_transaction_session_timeout: 15_000,
   });
 }
 

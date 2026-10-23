@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { createOrderAction, type ActionState } from "@/app/orders/actions";
+import { LIMITS } from "@/lib/limits";
 
 export type CustomerOption = { id: number; name: string; code: string };
 export type AddressOption = {
@@ -350,6 +351,7 @@ export function CreateOrderForm({
                 name="packCount"
                 type="number"
                 min={1}
+                max={LIMITS.packCountMax}
                 step={1}
                 required
                 value={packCount}
@@ -368,7 +370,7 @@ export function CreateOrderForm({
             </label>
             <label>
               备注
-              <input name="note" />
+              <input name="note" maxLength={LIMITS.orderNote} />
             </label>
           </div>
           {selectedPrice ? (

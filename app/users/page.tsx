@@ -2,6 +2,8 @@ import { query } from "@/lib/db";
 import { Badge } from "@/app/components/Badge";
 import { formatTime } from "@/app/format";
 import { ACCOUNT_STATUS_LABEL, ROLE_LABEL, labelOf } from "@/app/labels";
+import { INVALID_FILTER_MESSAGE } from "@/lib/input";
+import { logServerError, publicErrorMessage } from "@/lib/public-error";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,24 @@ function one(v: string | string[] | undefined): string {
   return v ?? "";
 }
 
+/** Fixed column list. password_hash must never be added. */
+const USER_LIST_COLUMNS = [
+  "username",
+  "display_name",
+  "role",
+  "status",
+  "last_login_at",
+  "created_at",
+] as const;
+
+function presentUsers(rows: UserRow[]): UserRow[] {
+  return rows.map((row) => {
+    const safe = { ...row };
+    delete (safe as { password_hash?: unknown }).password_hash;
+    return safe;
+  });
+}
+
 export default async function UsersPage({
   searchParams,
 }: {
@@ -32,25 +52,29 @@ export default async function UsersPage({
 
   const where: string[] = [];
   const params: unknown[] = [];
+  let invalidFilter = false;
+  const markInvalid = () => {
+    invalidFilter = true;
+    where.push("FALSE");
+  };
 
   if (role) {
-    params.push(role);
-    where.push(`role = $${params.length}`);
+    if (role !== "admin" && role !== "operator") markInvalid();
+    else {
+      params.push(role);
+      where.push(`role = $${params.length}`);
+    }
   }
   if (status) {
-    params.push(status);
-    where.push(`status = $${params.length}`);
+    if (status !== "active" && status !== "disabled") markInvalid();
+    else {
+      params.push(status);
+      where.push(`status = $${params.length}`);
+    }
   }
 
-  // password_hash intentionally omitted
   const sql = `
-    SELECT
-      username,
-      display_name,
-      role,
-      status,
-      last_login_at,
-      created_at
+    SELECT ${USER_LIST_COLUMNS.join(", ")}
     FROM app_users
     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
     ORDER BY id
@@ -60,15 +84,18 @@ export default async function UsersPage({
   let rows: UserRow[] = [];
   let error: string | null = null;
   try {
-    rows = await query<UserRow>(sql, params);
+    rows = presentUsers(await query<UserRow>(sql, params));
   } catch (e) {
-    error = e instanceof Error ? e.message : "查询失败";
+    logServerError("users list", e);
+    error = publicErrorMessage(e, "查询失败");
   }
 
   return (
     <>
       <h1 className="page-title">用户管理</h1>
-      <p className="page-desc">只读列表。密码不会出现在此页。按角色、状态筛选。</p>
+      <p className="page-desc">
+        只读列表。密码不会出现在此页。登录上线前，能打开本站的人都能看到账号名，请只在本机使用。
+      </p>
 
       <div className="panel">
         <div className="panel-head">
@@ -100,6 +127,7 @@ export default async function UsersPage({
           </div>
         </form>
 
+        {invalidFilter ? <p className="error">{INVALID_FILTER_MESSAGE}</p> : null}
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
           <p className="empty">

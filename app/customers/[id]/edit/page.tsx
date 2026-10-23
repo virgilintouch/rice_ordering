@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { query } from "@/lib/db";
 import { EditCustomerForm } from "@/app/customers/EditCustomerForm";
+import { parseId } from "@/lib/input";
+import { logServerError } from "@/lib/public-error";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -19,11 +21,11 @@ export default async function EditCustomerPage({
 }) {
   const { id: idRaw } = await params;
   const sp = await searchParams;
-  const customerId = Number(idRaw);
-  const addressId = Number(one(sp.addressId));
-  if (!customerId || !addressId) notFound();
+  const customerId = parseId(idRaw);
+  const addressId = parseId(one(sp.addressId));
+  if (customerId == null || addressId == null) notFound();
 
-  const rows = await query<{
+  type EditRow = {
     id: number;
     code: string;
     name: string;
@@ -35,29 +37,41 @@ export default async function EditCustomerPage({
     recipient_phone: string;
     address: string;
     label: string | null;
-  }>(
-    `SELECT
-       c.id,
-       c.code,
-       c.name,
-       c.source,
-       c.note,
-       c.status,
-       a.id AS address_id,
-       a.recipient_name,
-       a.recipient_phone,
-       a.address,
-       a.label
-     FROM customers c
-     JOIN customer_addresses a ON a.customer_id = c.id
-     WHERE c.id = $1
-       AND a.id = $2
-       AND c.deleted_at IS NULL
-     LIMIT 1`,
-    [customerId, addressId],
-  );
+  };
 
-  const row = rows[0];
+  let row: EditRow | undefined;
+  try {
+    const rows = await query<EditRow>(
+      `SELECT
+         c.id,
+         c.code,
+         c.name,
+         c.source,
+         c.note,
+         c.status,
+         a.id AS address_id,
+         a.recipient_name,
+         a.recipient_phone,
+         a.address,
+         a.label
+       FROM customers c
+       JOIN customer_addresses a ON a.customer_id = c.id
+       WHERE c.id = $1
+         AND a.id = $2
+         AND c.deleted_at IS NULL
+       LIMIT 1`,
+      [customerId, addressId],
+    );
+    row = rows[0];
+  } catch (error) {
+    logServerError("editCustomer", error);
+    return (
+      <>
+        <h1 className="page-title">修改客户</h1>
+        <p className="error">加载失败</p>
+      </>
+    );
+  }
   if (!row) notFound();
 
   return (

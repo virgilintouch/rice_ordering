@@ -5,14 +5,14 @@
 ## 当前状态
 
 - **已建表**：5 张（`customers`、`customer_addresses`、`rice_year_prices`、`orders`、`app_users`）
-- **Web**：Next.js 端口 `3721`；客户/订单可写入；客户支持 Excel/CSV 批量导入；价目与用户仍为只读
-- **尚未做**：登录、价目/用户写入、复杂报表
+- **Web**：Next.js 端口 `3721`；客户 / 订单 / 年份价目可写入；客户支持 Excel/CSV 批量导入；用户页仍为只读
+- **尚未做**（优先级）：前端美化 → 安全性评估与优化 → 登录 → 价目修改/用户写入 → 简单报表
 - **最新进度**：见 [docs/PROGRESS.md](docs/PROGRESS.md)
 - **DBeaver 连接与浏览**：见 [docs/dbeaver-guide.md](docs/dbeaver-guide.md)
 
 ## 本地启动 Web
 
-1. 确认 PostgreSQL 已启动，库名 `rice_ordering`
+1. 确认 PostgreSQL 已启动，库名 `rice_ordering`；按 [db/README.md](db/README.md) 执行 `db/schema/` 迁移
 2. 复制环境变量：`cp .env.example .env.local`，按需填写（本机 trust 时密码可留空）
 3. 安装并启动：
 
@@ -23,12 +23,15 @@ npm run dev
 
 浏览器打开 [http://localhost:3721](http://localhost:3721)。健康检查：[http://localhost:3721/api/health](http://localhost:3721/api/health)。
 
+空库时请先在「成本」新建年份价目、在「客户」新建或导入客户，再去「订单」下单。仓库**不含**真实业务数据与 `sample-data/` 样本文件。
+
 | 路径 | 说明 |
 |---|---|
-| `/orders` | 下单、状态推进、列表筛选 |
-| `/customers` | 新建客户、启停用、列表筛选 |
+| `/orders` | 下单（筛客户 → 单选地址 → 价档/包数）、状态推进、时间戳列表；点订单号新标签打开详情（可打印/关闭） |
+| `/orders/[id]` | 订单详情（收货快照、单价、数量、各阶段时间） |
+| `/customers` | 新建 / 修改 / 启停用 / 软删、多关键词筛选 |
 | `/customers/import` | 批量导入（姓名/来源/收件人/电话/地址） |
-| `/prices` | 年份价目只读 |
+| `/prices` | 年份价目列表筛选、按年新建 |
 | `/users` | 后台用户只读（不含密码哈希） |
 
 Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-skeleton.md)。
@@ -84,7 +87,7 @@ Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-
 - 按包销售。订单金额 = 所选售价 × `jin_per_pack` × 包数。
 - 毛利查询时计算。普通包装 = 售价 − 成本 − 运费；真空包装再减真空包装费。
 - 九个字段都可按年单独修改，全部 `NOT NULL`，数值必须大于 0。
-- 已写入 2026 年测试行：成本 3.50、运费 1.20、真空费 0.50、售价 8.50 / 9.00 / 7.50 / 8.00、每包 10 斤。这行不在迁移脚本里。
+- 示例数字（成本 3.50、运费 1.20、真空费 0.50、售价 8.50 / 9.00 / 7.50 / 8.00、每包 10 斤）仅用于核对口径，**不在迁移脚本里**，也不随仓库附带。
 
 | 字段 | 类型 | 关键约束 |
 |---|---|---|
@@ -133,7 +136,7 @@ Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-
 
 ## 给后续 AI 工具的接力说明
 
-1. **客户/订单写入与导入已齐**。下一步可做登录，或价目/用户写入、复杂报表。不要再设计 `shipping_rates`、`vacuum_rates`。
+1. **客户 / 订单 / 价目写入与导入已齐**。后续优先顺序：前端美化 → 安全性评估与优化 → 登录 → 价目修改/用户写入 → 简单报表。不建仓库内脱敏种子（见 PROGRESS）；不做 DBeaver 补看。不要再设计 `shipping_rates`、`vacuum_rates`。
 2. **已建表的不要重做**。除非用户明确说要改。
 3. **新表的设计流程**：
    - 在对话中与用户对齐字段
@@ -147,19 +150,21 @@ Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-
 - [x] `customers` 设计 + 建表 + 验证（含 DBeaver）
 - [x] `customer_addresses` 设计 + 建表 + 验证（含 DBeaver）
 - [x] DBeaver 连接指南
-- [ ] 从 Excel 导入 35 行客户数据
-- [x] `rice_year_prices` 设计定稿、建表，并在 DBeaver 核对 2026 年测试行与毛利
+- [x] 客户 Excel/CSV 批量导入（页面已支持；样本文件不入库）
+- [x] `rice_year_prices` 设计定稿、建表，并在 DBeaver 核对毛利口径
 - [x] 运费、真空费并入 `rice_year_prices`，不再单独建表
-- [x] `orders` 设计定稿并建表（psql 已核对）
-- [ ] `orders` 的 DBeaver 可视化验证
-- [x] `app_users` 设计定稿并建表（psql 已核对）
-- [ ] `app_users` 的 DBeaver 可视化验证
+- [x] `orders` 设计定稿并建表（psql 已核对；不安排 DBeaver 补看）
+- [x] `app_users` 设计定稿并建表（psql 已核对；不安排 DBeaver 补看）
 - [x] Web 骨干（Next.js，端口 3721）
-- [x] 客户新建 / 启停用 / Excel·CSV 导入
-- [x] 订单新建（价格快照）/ 状态推进
-- [ ] 登录（`app_users`）
-- [ ] 价目与用户写入
-- [ ] 复杂报表
+- [x] 客户新建 / 修改 / 启停用 / 软删 / Excel·CSV 导入
+- [x] 订单新建（价格快照）/ 状态推进 / 详情打印 / 时间戳
+- [x] 年份价目新建
+- [x] 脱敏种子检查：现阶段不建仓库内 seed；本机 `sample-data/` 不入库
+- [ ] 1. 前端界面美化调整
+- [ ] 2. 整体代码安全性评估与优化
+- [ ] 3. 登录（`app_users`）
+- [ ] 4. 价目修改 / 用户写入
+- [ ] 5. 简单报表
 
 ## 数据库
 

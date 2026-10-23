@@ -1,10 +1,14 @@
 # 项目进度
 
-最后更新：2026-10-24
+最后更新：2026-10-24（深夜收工整理）
 
 ## 当前阶段
 
-Web 已可用：Next.js 端口 3721。客户新建/启停用/批量导入，订单下单（快照）与状态推进已落地。登录、价目/用户写入、报表未做。
+**订购主流程已可用**（Next.js `localhost:3721`）。五张表齐；客户 / 订单 / 年份价目可写入；订单详情可打印。
+
+本机库已清空业务数据（订单、客户、地址、价目），便于干净开发与后续导入。`sample-data/` 不入库。
+
+Git：Web 主体已在 `e0d4e96`；本进度与 README 的收工整理随后续文档提交一并推送。
 
 ## 已完成
 
@@ -12,19 +16,28 @@ Web 已可用：Next.js 端口 3721。客户新建/启停用/批量导入，订�
 
 - [x] `customers` 客户档案 — 设计 → spec → SQL → 建表 → DBeaver 可视化验证
 - [x] `customer_addresses` 收货地址簿 — 设计 → spec → SQL → 建表 → DBeaver 可视化验证
-- [x] `rice_year_prices` 年份价格 — 设计 → ADR → spec → SQL → 建表 → DBeaver 核对测试行与毛利
-- [x] `orders` 订单 — 设计 → ADR → spec → SQL → 建表（psql 已核对，DBeaver 未看）
-- [x] `app_users` 后台用户 — 设计 → ADR → spec → SQL → 建表（psql 已核对，DBeaver 未看）
+- [x] `rice_year_prices` 年份价格 — 设计 → ADR → spec → SQL → 建表 → DBeaver 核对毛利口径
+- [x] `orders` 订单 — 设计 → ADR → spec → SQL → 建表（psql 已核对；**不再安排** DBeaver 补看）
+- [x] `app_users` 后台用户 — 设计 → ADR → spec → SQL → 建表（psql 已核对；**不再安排** DBeaver 补看）
 
 ### 工程基础
 
 - [x] 项目结构（README, LICENSE, .gitignore, .env.example）
-- [x] 数据库迁移脚本框架（`db/schema/001_*.sql`）
+- [x] 数据库迁移脚本框架（`db/schema/001`–`004`）
 - [x] 迁移应用脚本（`scripts/apply-migration.sh`）
 - [x] 本机 PostgreSQL 18 服务配置（launchd 启动、pg_hba.conf 改为 trust）
 - [x] 文档体系（specs / decisions / PROGRESS / dbeaver-guide）
-- [x] Next.js Web 骨干（四页列表 + `/api/health`，端口 3721）
-- [x] 客户写入与批量导入；订单写入与状态推进
+- [x] Next.js Web 骨干（端口 3721 + `/api/health`）
+- [x] GitHub 同步（含 Web；忽略 `sample-data/`、`.env.local`、`node_modules/`、`.next/`）
+
+### Web 功能（2026-10-24）
+
+- [x] **客户**：筛选（多关键词）、新建、修改、启停用、软删、Excel/CSV 导入
+- [x] **成本 / 价目**：列表筛选、按年新建（成本/运费/真空费/四档售价/每包斤数）
+- [x] **订单创建**：筛客户 → 地址单选 → 价档与包数；单价/总价只读由价目计算；成功后清空表单防重复提交
+- [x] **订单列表**：状态推进（付款→发货→签收）；下单/付款/发货/收货时间戳；签收后操作列显示「订单已完成」（不入库）
+- [x] **订单详情**：订单号新标签打开；标题 `订单号-{order_no}`；打印 / 关闭窗口
+- [x] **布局**：内容区加宽，表格单元格尽量单行显示
 
 ## 验证记录
 
@@ -93,16 +106,31 @@ Web 已可用：Next.js 端口 3721。客户新建/启停用/批量导入，订�
 
 ## 进行中
 
-无。
+无（订购闭环已收口）。
 
-## 待办
+## 检查结论（2026-10-24）
 
-按优先级：
+### DBeaver 补看结构
 
-1. 登录（基于 `app_users`）
-2. 价目 / 用户写入
-3. 复杂报表
-4. 在 DBeaver 补看结构（可选）
+- **结论：不做。** `customers` / `customer_addresses` / `rice_year_prices` 已用 DBeaver 核对过；`orders` / `app_users` 以 psql 核对为准，不再单列后续任务。
+
+### 脱敏种子数据
+
+- **库内**：客户 / 地址 / 价目 / 订单 / 用户均为 **0 行**（已主动清空）。
+- **仓库**：无 `db/seeds/`；`sample-data/` 仅本机 Excel（含真实感测数据），已 gitignore，**不入库**。
+- **结论：现阶段不建仓库内脱敏种子。** clone 后用页面新建价目与客户即可；本机导入继续用本地 `sample-data/` 或自备文件。若日后多人 onboarding 需要「一键示例价目」，再单独做脱敏 seed。
+
+## 下一步
+
+**后续 5 项（按推荐优先级）**：
+
+1. **前端界面美化调整** — 日常使用已开，先提升可读性与关键页体验，不改业务结构  
+2. **整体代码安全性评估与优化** — 现状无登录、页面全开；先评估再按风险加固（校验、Actions、错误信息、暴露面等）  
+3. **登录鉴权**（`app_users`）— 接在安全评估之后落地，避免先做登录再大规模返工  
+4. **价目修改 / 用户写入** — 补齐价目改价与后台用户维护（目前价目仅新建、用户只读）  
+5. **简单报表** — 按客户 / 按年汇总与毛利；等有真实订单数据后再做收益最大  
+
+不建议再拆 `shipping_rates` / `vacuum_rates`。
 
 ## 环境配置
 

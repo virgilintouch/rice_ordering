@@ -15,9 +15,7 @@ export type CreatePriceYearInput = {
   jinPerPack: number;
 };
 
-export async function createPriceYear(
-  input: CreatePriceYearInput,
-): Promise<{ year: number }> {
+function assertPriceYear(input: CreatePriceYearInput): void {
   const year = input.year;
   if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     throw new PublicError("年份须为 2000–2100 的整数");
@@ -38,6 +36,13 @@ export async function createPriceYear(
   ) {
     throw new PublicError(`每包斤数须为 1–${LIMITS.jinPerPackMax} 的整数`);
   }
+}
+
+export async function createPriceYear(
+  input: CreatePriceYearInput,
+): Promise<{ year: number }> {
+  assertPriceYear(input);
+  const year = input.year;
 
   const existing = await query<{ year: number }>(
     `SELECT year FROM rice_year_prices WHERE year = $1`,
@@ -73,4 +78,37 @@ export async function createPriceYear(
   );
 
   return { year };
+}
+
+/** Overwrites one year. Year stays the primary key. Past orders keep their snapshots. */
+export async function updatePriceYear(
+  input: CreatePriceYearInput,
+): Promise<{ year: number }> {
+  assertPriceYear(input);
+  const rows = await query<{ year: number }>(
+    `UPDATE rice_year_prices SET
+       rice_cost_per_jin = $2,
+       shipping_fee_per_jin = $3,
+       vacuum_fee_per_jin = $4,
+       retail_plain_per_jin = $5,
+       retail_vacuum_per_jin = $6,
+       vip_plain_per_jin = $7,
+       vip_vacuum_per_jin = $8,
+       jin_per_pack = $9
+     WHERE year = $1
+     RETURNING year`,
+    [
+      input.year,
+      input.riceCostPerJin,
+      input.shippingFeePerJin,
+      input.vacuumFeePerJin,
+      input.retailPlainPerJin,
+      input.retailVacuumPerJin,
+      input.vipPlainPerJin,
+      input.vipVacuumPerJin,
+      input.jinPerPack,
+    ],
+  );
+  if (!rows[0]) throw new PublicError(`${input.year} 年价目不存在`);
+  return { year: rows[0].year };
 }

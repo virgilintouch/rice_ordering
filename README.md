@@ -5,9 +5,9 @@
 ## 当前状态
 
 - **已建表**：5 张（`customers`、`customer_addresses`、`rice_year_prices`、`orders`、`app_users`）
-- **Web**：Next.js 端口 `3721`，默认只监听 `127.0.0.1`；客户 / 订单 / 年份价目可写入；客户支持 Excel/CSV 批量导入；用户页只读且仅管理员可看，查询不含 `password_hash`
-- **已做**：前端可读性调整。首轮安全加固（本机绑定、写入校验、错误信息不回传数据库原文、基础响应头）之上，已加 `app_users` 登录与会话。详见 [docs/PROGRESS.md](docs/PROGRESS.md)
-- **尚未做**（优先级）：价目修改/用户写入 → 简单报表
+- **Web**：Next.js 端口 `3721`，默认只监听 `127.0.0.1`；客户 / 订单 / 年份价目可写入（价目可新建和修改）；客户支持 Excel/CSV 批量导入；用户页仅管理员可新建和修改，查询不含 `password_hash`
+- **已做**：前端可读性调整。首轮安全加固（本机绑定、写入校验、错误信息不回传数据库原文、基础响应头）之上，已加 `app_users` 登录与会话，以及价目修改和后台账号维护。详见 [docs/PROGRESS.md](docs/PROGRESS.md)
+- **尚未做**（优先级）：简单报表
 - **最新进度**：见 [docs/PROGRESS.md](docs/PROGRESS.md)
 - **DBeaver 连接与浏览**：见 [docs/dbeaver-guide.md](docs/dbeaver-guide.md)
 
@@ -70,7 +70,7 @@ node --experimental-strip-types scripts/set-app-user-password.ts <用户名> <�
 
 未登录访问工作人员页面会转到 `/login?next=…`（`next` 只接受站内相对路径）。客户 / 订单 / 价目的写入 Server Action 会再确认账号仍是启用的 `admin` 或 `operator`；否则返回「请先登录」，不返回栈或数据库原文。`/api/health` 仍公开，不含业务数据。
 
-`/users` 只给 `admin`。操作员的导航和首页没有这一项；直接打开会看到「无权查看」，并且不会查询用户表。列表仍然不选 `password_hash`。
+`/users` 只给 `admin`。操作员的导航和首页没有这一项；直接打开会看到「无权查看」，并且不会查询用户表。管理员可新建、修改账号和重置密码（与 `scripts/set-app-user-password.ts` 一样走 bcrypt）。停用或降级最后一个启用的管理员会被拒绝。列表和修改页仍然不选 `password_hash`。操作员可以新建和修改年份价目（与查看价目同一权限）。价目没有删除。
 
 空库时请先在「成本」新建年份价目、在「客户」新建或导入客户，再去「订单」下单。仓库**不含**真实业务数据与 `sample-data/` 样本文件。
 
@@ -80,9 +80,11 @@ node --experimental-strip-types scripts/set-app-user-password.ts <用户名> <�
 | `/orders/[id]` | 订单详情与打印（状态、价档、包数、每包斤数、单价、金额、收货快照、各阶段时间） |
 | `/customers` | 新建 / 修改 / 启停用 / 软删、多关键词筛选 |
 | `/customers/import` | 批量导入（姓名/来源/收件人/电话/地址） |
-| `/prices` | 年份价目列表筛选、按年新建 |
+| `/prices` | 年份价目列表筛选、按年新建和修改（管理员与操作员） |
+| `/prices/[year]/edit` | 修改该年成本、运费、真空费、四档售价、每包斤数 |
 | `/login` | 用户名 + 密码登录 |
-| `/users` | 后台用户只读（仅管理员；不含密码哈希） |
+| `/users` | 后台用户新建 / 修改（仅管理员；不含密码哈希） |
+| `/users/[id]/edit` | 修改用户名、显示名、角色、启停；密码可留空 |
 
 Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-skeleton.md)。
 
@@ -186,7 +188,7 @@ Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-
 
 ## 给后续 AI 工具的接力说明
 
-1. **客户 / 订单 / 价目写入与导入已齐，登录已接在 `app_users` 上**。不要再做第二套用户表。后续优先顺序：价目修改/用户写入 → 简单报表。不要把 Web 或数据库暴露到局域网。不建仓库内脱敏种子（见 PROGRESS）；不做 DBeaver 补看。不要再设计 `shipping_rates`、`vacuum_rates`。
+1. **客户 / 订单 / 价目写入与导入已齐，登录已接在 `app_users` 上，价目可改，管理员可维护后台账号**。不要再做第二套用户表。后续优先顺序：简单报表。不要把 Web 或数据库暴露到局域网。不建仓库内脱敏种子（见 PROGRESS）；不做 DBeaver 补看。不要再设计 `shipping_rates`、`vacuum_rates`。不要停用或降级最后一个启用的管理员。页面和接口不要查询或返回 `password_hash`。
 2. **已建表的不要重做**。除非用户明确说要改。
 3. **新表的设计流程**：
    - 在对话中与用户对齐字段
@@ -213,7 +215,7 @@ Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-
 - [x] 1. 前端界面美化调整（可读性与日常操作，不改业务逻辑）
 - [x] 2. 整体代码安全性评估与首轮加固
 - [x] 3. 登录（`app_users`，iron-session + bcrypt）
-- [ ] 4. 价目修改 / 用户写入
+- [x] 4. 价目修改 / 用户写入（价目无删除；最后一个启用管理员不能被停用或降级）
 - [ ] 5. 简单报表
 
 ## 数据库

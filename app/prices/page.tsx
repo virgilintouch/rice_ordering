@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { query } from "@/lib/db";
 import { CreatePriceForm } from "@/app/prices/CreatePriceForm";
 import { INVALID_FILTER_MESSAGE, parseYear } from "@/lib/input";
@@ -93,7 +94,7 @@ export default async function PricesPage({
     <>
       <h1 className="page-title">成本 / 年份价目</h1>
       <p className="page-desc">
-        按年份维护成本、运费、真空费与四档售价。表内金额为元/斤。可筛选查看，也可新建一年价目。
+        按年份维护成本、运费、真空费与四档售价。表内金额为元/斤。可筛选、新建或修改。已有订单仍用下单时的价格快照。价目没有启停或删除。
       </p>
 
       <div className="panel">
@@ -139,6 +140,7 @@ export default async function PricesPage({
                     <th className="num">VIP 普通</th>
                     <th className="num">VIP 真空</th>
                     <th className="num">每包斤数</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -153,6 +155,11 @@ export default async function PricesPage({
                       <td className="num">{row.vip_plain_per_jin}</td>
                       <td className="num">{row.vip_vacuum_per_jin}</td>
                       <td className="num">{row.jin_per_pack}</td>
+                      <td>
+                        <Link className="linkish" href={`/prices/${row.year}/edit`}>
+                          修改
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

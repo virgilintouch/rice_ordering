@@ -746,6 +746,69 @@ button.linkish.danger:hover {
   }
 }
 
+.session-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-left: 0.75rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.session-bar form,
+.site-header-inner > form {
+  margin: 0;
+}
+
+.session-name {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.session-bar button,
+.site-header-inner > form button {
+  font: inherit;
+  font-weight: 650;
+  font-size: 0.82rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.session-bar button:hover,
+.site-header-inner > form button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.login-panel {
+  max-width: 24rem;
+}
+
+.login-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.login-panel input {
+  font: inherit;
+  font-weight: 450;
+  color: var(--ink);
+  padding: 0.48rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  width: 100%;
+}
+
 @media print {
   .site-header,
   .no-print {

@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireActiveUser } from "@/lib/current-user";
 import { parseMoney, parsePositiveInt, requiredYear } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
-import { logServerError, publicErrorMessage } from "@/lib/public-error";
+import { isNextRedirect, logServerError, publicErrorMessage } from "@/lib/public-error";
 import { createPriceYear } from "@/lib/prices";
 
 export type ActionState = {
@@ -20,6 +21,7 @@ export async function createPriceYearAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
+    await requireActiveUser();
     const result = await createPriceYear({
       year: requiredYear(String(formData.get("year") ?? "")),
       riceCostPerJin: money(formData, "riceCostPerJin", "大米成本"),
@@ -39,6 +41,7 @@ export async function createPriceYearAction(
     revalidatePath("/orders");
     return { ok: true, message: `已创建 ${result.year} 年价目` };
   } catch (error) {
+    if (isNextRedirect(error)) throw error;
     logServerError("createPriceYear", error);
     return {
       ok: false,

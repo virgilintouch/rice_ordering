@@ -2,8 +2,10 @@ import { query } from "@/lib/db";
 import { Badge } from "@/app/components/Badge";
 import { formatTime } from "@/app/format";
 import { ACCOUNT_STATUS_LABEL, ROLE_LABEL, labelOf } from "@/app/labels";
+import { resolveAuth } from "@/lib/current-user";
 import { INVALID_FILTER_MESSAGE } from "@/lib/input";
 import { logServerError, publicErrorMessage } from "@/lib/public-error";
+import { LOGIN_REQUIRED_MESSAGE } from "@/lib/session-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +48,24 @@ export default async function UsersPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const auth = await resolveAuth();
+  if (auth.kind !== "active") {
+    return (
+      <>
+        <h1 className="page-title">用户管理</h1>
+        <p className="error">{LOGIN_REQUIRED_MESSAGE}</p>
+      </>
+    );
+  }
+  if (auth.user.role !== "admin") {
+    return (
+      <>
+        <h1 className="page-title">用户管理</h1>
+        <p className="error">无权查看用户管理。</p>
+      </>
+    );
+  }
+
   const sp = await searchParams;
   const role = one(sp.role).trim();
   const status = one(sp.status).trim();
@@ -94,7 +114,7 @@ export default async function UsersPage({
     <>
       <h1 className="page-title">用户管理</h1>
       <p className="page-desc">
-        只读列表。密码不会出现在此页。登录上线前，能打开本站的人都能看到账号名，请只在本机使用。
+        只读列表，仅管理员可看。密码哈希不会出现在此页。
       </p>
 
       <div className="panel">

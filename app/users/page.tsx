@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { query } from "@/lib/db";
 import { Badge } from "@/app/components/Badge";
 import { formatTime } from "@/app/format";
+import { CreateUserForm } from "@/app/users/CreateUserForm";
 import { ACCOUNT_STATUS_LABEL, ROLE_LABEL, labelOf } from "@/app/labels";
 import { resolveAuth } from "@/lib/current-user";
 import { INVALID_FILTER_MESSAGE } from "@/lib/input";
@@ -12,6 +14,7 @@ export const dynamic = "force-dynamic";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 type UserRow = {
+  id: string | number;
   username: string;
   display_name: string;
   role: string;
@@ -27,6 +30,7 @@ function one(v: string | string[] | undefined): string {
 
 /** Fixed column list. password_hash must never be added. */
 const USER_LIST_COLUMNS = [
+  "id",
   "username",
   "display_name",
   "role",
@@ -114,8 +118,12 @@ export default async function UsersPage({
     <>
       <h1 className="page-title">用户管理</h1>
       <p className="page-desc">
-        只读列表，仅管理员可看。密码哈希不会出现在此页。
+        仅管理员可新建和修改后台账号。密码只存哈希，此页不显示。不能停用或降级最后一个启用的管理员。
       </p>
+
+      <div className="panel">
+        <CreateUserForm />
+      </div>
 
       <div className="panel">
         <div className="panel-head">
@@ -165,6 +173,7 @@ export default async function UsersPage({
                     <th>状态</th>
                     <th>最近登录</th>
                     <th>创建时间</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -182,6 +191,11 @@ export default async function UsersPage({
                       </td>
                       <td>{formatTime(row.last_login_at)}</td>
                       <td>{formatTime(row.created_at)}</td>
+                      <td>
+                        <Link className="linkish" href={`/users/${row.id}/edit`}>
+                          修改
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

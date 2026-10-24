@@ -98,3 +98,10 @@ export async function requireActiveUser(): Promise<AuthUser> {
   if (auth.kind === "reject") await clearSession();
   throw new PublicError(LOGIN_REQUIRED_MESSAGE);
 }
+
+/** User-management writes. Operators who can already use prices stay off this path. */
+export async function requireAdmin(): Promise<AuthUser> {
+  const user = await requireActiveUser();
+  if (user.role !== "admin") throw new PublicError("无权管理用户。");
+  return user;
+}

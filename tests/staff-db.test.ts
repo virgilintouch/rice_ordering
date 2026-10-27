@@ -112,9 +112,8 @@ describe("staff and price writes against postgres", { skip: !enabled }, () => {
       assert.equal(after[0]?.display_name, "系统用户甲改");
       assert.equal(await verifyPassword(reset, after[0]?.password_hash ?? ""), true);
 
-      await createPriceYear({
+      const priceCreated = await createPriceYear({
         year,
-        batch: "00",
         riceCostPerJin: 3.5,
         shippingFeePerJin: 1.2,
         vacuumFeePerJin: 0.5,
@@ -124,9 +123,10 @@ describe("staff and price writes against postgres", { skip: !enabled }, () => {
         vipVacuumPerJin: 8,
         jinPerPack: 10,
       });
-      await updatePriceYear({
+      assert.equal(priceCreated.batch, "00");
+      const priceRevised = await updatePriceYear({
         year,
-        batch: "00",
+        sourceBatch: "00",
         riceCostPerJin: 4,
         shippingFeePerJin: 1.2,
         vacuumFeePerJin: 0.5,
@@ -135,10 +135,17 @@ describe("staff and price writes against postgres", { skip: !enabled }, () => {
         vipPlainPerJin: 7.5,
         vipVacuumPerJin: 8,
         jinPerPack: 10,
+        costNote: "调价",
       });
-      const price = await query<{ rice_cost_per_jin: string }>(
+      assert.equal(priceRevised.batch, "01");
+      const original = await query<{ rice_cost_per_jin: string }>(
         `SELECT rice_cost_per_jin::text FROM rice_year_prices WHERE year = $1 AND batch = $2`,
         [year, "00"],
+      );
+      assert.equal(Number(original[0]?.rice_cost_per_jin), 3.5);
+      const price = await query<{ rice_cost_per_jin: string }>(
+        `SELECT rice_cost_per_jin::text FROM rice_year_prices WHERE year = $1 AND batch = $2`,
+        [year, "01"],
       );
       assert.equal(Number(price[0]?.rice_cost_per_jin), 4);
       assert.ok(pricing.id);

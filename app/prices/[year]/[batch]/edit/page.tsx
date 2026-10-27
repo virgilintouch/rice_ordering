@@ -18,6 +18,7 @@ type PriceRow = {
   vip_plain_per_jin: string;
   vip_vacuum_per_jin: string;
   jin_per_pack: number;
+  cost_note: string | null;
 };
 
 export default async function EditPricePage({
@@ -62,7 +63,8 @@ export default async function EditPricePage({
          retail_vacuum_per_jin,
          vip_plain_per_jin,
          vip_vacuum_per_jin,
-         jin_per_pack
+         jin_per_pack,
+         cost_note
        FROM rice_year_prices
        WHERE year = $1 AND batch = $2`,
       [year, batch],
@@ -84,19 +86,21 @@ export default async function EditPricePage({
       <div className="page-head">
         <div>
           <h1 className="page-title">
-            修改 {row.year} 年批次 {row.batch} 价目
+            修订 {row.year} 年批次 {row.batch} 价目
           </h1>
-          <p className="page-desc">改这一批的成本、运费、真空费、四档售价和每包斤数。</p>
+          <p className="page-desc">
+            保存后生成新批次，不覆盖、不删除原批次。批次号由系统自动分配。
+          </p>
         </div>
         <Link className="btn-secondary" href="/prices">
-          返回价目
+          返回
         </Link>
       </div>
       <div className="panel">
         <EditPriceForm
           values={{
             year: row.year,
-            batch: row.batch,
+            sourceBatch: row.batch,
             riceCostPerJin: row.rice_cost_per_jin,
             shippingFeePerJin: row.shipping_fee_per_jin,
             vacuumFeePerJin: row.vacuum_fee_per_jin,
@@ -105,6 +109,7 @@ export default async function EditPricePage({
             vipPlainPerJin: row.vip_plain_per_jin,
             vipVacuumPerJin: row.vip_vacuum_per_jin,
             jinPerPack: row.jin_per_pack,
+            costNote: row.cost_note ?? "",
           }}
         />
       </div>

@@ -8,6 +8,8 @@ export const LIMITS = {
   address: 500,
   label: 64,
   orderNote: 2000,
+  /** Price-row remarks; required except for batch 00. */
+  costNote: 200,
   packCountMax: 99_999,
   jinPerPackMax: 9_999,
   /** Matches NUMERIC(10,2). */

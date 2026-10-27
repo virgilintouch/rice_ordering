@@ -171,6 +171,17 @@ main {
   margin-bottom: 0.85rem;
 }
 
+.price-form .price-form-spacer {
+  display: block;
+  min-height: 0;
+}
+
+@media (max-width: 720px) {
+  .price-form .price-form-spacer {
+    display: none;
+  }
+}
+
 .filters input,
 .filters select,
 .write-form textarea,

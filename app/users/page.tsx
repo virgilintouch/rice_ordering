@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { query } from "@/lib/db";
 import { Badge } from "@/app/components/Badge";
 import { formatTime } from "@/app/format";
 import { CreateUserForm } from "@/app/users/CreateUserForm";
+import { UserRowActions } from "@/app/users/UserRowActions";
 import { ACCOUNT_STATUS_LABEL, ROLE_LABEL, labelOf } from "@/app/labels";
 import { resolveAuth } from "@/lib/current-user";
 import { INVALID_FILTER_MESSAGE } from "@/lib/input";
@@ -83,7 +83,7 @@ export default async function UsersPage({
   };
 
   if (role) {
-    if (role !== "admin" && role !== "operator") markInvalid();
+    if (role !== "admin" && role !== "pricing" && role !== "user") markInvalid();
     else {
       params.push(role);
       where.push(`role = $${params.length}`);
@@ -118,7 +118,7 @@ export default async function UsersPage({
     <>
       <h1 className="page-title">用户管理</h1>
       <p className="page-desc">
-        仅管理员可新建和修改后台账号。密码只存哈希，此页不显示。不能停用或降级最后一个启用的管理员。
+        仅管理员可新建、修改和删除后台账号。密码只存哈希，此页不显示。管理员账号不可删除；不能停用或降级唯一启用的管理员。
       </p>
 
       <div className="panel">
@@ -138,7 +138,8 @@ export default async function UsersPage({
             <select name="role" defaultValue={role}>
               <option value="">全部</option>
               <option value="admin">管理员</option>
-              <option value="operator">操作员</option>
+              <option value="pricing">定价员</option>
+              <option value="user">系统用户</option>
             </select>
           </label>
           <label>
@@ -192,9 +193,11 @@ export default async function UsersPage({
                       <td>{formatTime(row.last_login_at)}</td>
                       <td>{formatTime(row.created_at)}</td>
                       <td>
-                        <Link className="linkish" href={`/users/${row.id}/edit`}>
-                          修改
-                        </Link>
+                        <UserRowActions
+                          userId={Number(row.id)}
+                          username={row.username}
+                          role={row.role}
+                        />
                       </td>
                     </tr>
                   ))}

@@ -1,5 +1,5 @@
 import { query, withTransaction } from "@/lib/db";
-import { optionalText, requiredId } from "@/lib/input";
+import { optionalText, requiredBatch, requiredId } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
 import { PublicError } from "@/lib/public-error";
 
@@ -13,6 +13,8 @@ export type CreateOrderInput = {
   customerId: number;
   addressId: number;
   priceYear: number;
+  /** Two-digit batch; must be chosen by the user — never auto-selected. */
+  priceBatch: string;
   priceTier: string;
   packCount: number;
   note?: string;
@@ -71,6 +73,7 @@ export async function createOrder(
   if (!Number.isInteger(priceYear) || priceYear < 2000 || priceYear > 2100) {
     throw new PublicError("年份须为 2000–2100 的整数");
   }
+  const priceBatch = requiredBatch(input.priceBatch);
   const priceTier = parseTier(input.priceTier);
   const priceCol = TIER_COLUMNS[priceTier];
   const note = optionalText(input.note, "备注", LIMITS.orderNote);
@@ -99,16 +102,19 @@ export async function createOrder(
     const prices = await q<Record<string, unknown>>(
       `SELECT
          year,
+         batch,
          rice_cost_per_jin,
          shipping_fee_per_jin,
          vacuum_fee_per_jin,
          jin_per_pack,
          ${priceCol} AS unit_price_per_jin
        FROM rice_year_prices
-       WHERE year = $1`,
-      [priceYear],
+       WHERE year = $1 AND batch = $2`,
+      [priceYear, priceBatch],
     );
-    if (!prices[0]) throw new PublicError(`找不到 ${priceYear} 年价目`);
+    if (!prices[0]) {
+      throw new PublicError(`找不到 ${priceYear} 年批次 ${priceBatch} 价目`);
+    }
 
     const unit = Number(prices[0].unit_price_per_jin);
     const jinPerPack = Number(prices[0].jin_per_pack);
@@ -131,23 +137,24 @@ export async function createOrder(
 
     await q(
       `INSERT INTO orders (
-         order_no, customer_id, address_id, price_year,
+         order_no, customer_id, address_id, price_year, price_batch,
          recipient_name, recipient_phone, address,
          price_tier, pack_count, jin_per_pack,
          unit_price_per_jin, rice_cost_per_jin, shipping_fee_per_jin, vacuum_fee_per_jin,
          amount, status, ordered_at, note
        ) VALUES (
-         $1,$2,$3,$4,
-         $5,$6,$7,
-         $8,$9,$10,
-         $11,$12,$13,$14,
-         $15,'ordered',NOW(),$16
+         $1,$2,$3,$4,$5,
+         $6,$7,$8,
+         $9,$10,$11,
+         $12,$13,$14,$15,
+         $16,'ordered',NOW(),$17
        )`,
       [
         orderNo,
         customerId,
         addressId,
         priceYear,
+        priceBatch,
         addr.recipient_name,
         addr.recipient_phone,
         addr.address,

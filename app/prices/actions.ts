@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireActiveUser } from "@/lib/current-user";
-import { parseMoney, parsePositiveInt, requiredYear } from "@/lib/input";
+import { requirePricing } from "@/lib/current-user";
+import { parseMoney, parsePositiveInt, requiredBatch, requiredYear } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
 import { isNextRedirect, logServerError, publicErrorMessage } from "@/lib/public-error";
 import { createPriceYear, updatePriceYear, type CreatePriceYearInput } from "@/lib/prices";
@@ -20,6 +20,8 @@ function money(formData: FormData, key: string, label: string): number {
 function priceInput(formData: FormData): CreatePriceYearInput {
   return {
     year: requiredYear(String(formData.get("year") ?? "")),
+    // Batch is manual only — never invent a default here.
+    batch: requiredBatch(String(formData.get("batch") ?? "")),
     riceCostPerJin: money(formData, "riceCostPerJin", "大米成本"),
     shippingFeePerJin: money(formData, "shippingFeePerJin", "运费"),
     vacuumFeePerJin: money(formData, "vacuumFeePerJin", "真空费"),
@@ -40,11 +42,14 @@ export async function createPriceYearAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    await requireActiveUser();
+    await requirePricing();
     const result = await createPriceYear(priceInput(formData));
     revalidatePath("/prices");
     revalidatePath("/orders");
-    return { ok: true, message: `已创建 ${result.year} 年价目` };
+    return {
+      ok: true,
+      message: `已创建 ${result.year} 年批次 ${result.batch} 价目`,
+    };
   } catch (error) {
     if (isNextRedirect(error)) throw error;
     logServerError("createPriceYear", error);
@@ -60,7 +65,7 @@ export async function updatePriceYearAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    await requireActiveUser();
+    await requirePricing();
     await updatePriceYear(priceInput(formData));
     revalidatePath("/prices");
     revalidatePath("/orders");

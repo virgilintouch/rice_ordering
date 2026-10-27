@@ -27,7 +27,7 @@ export function sessionIsActive(loginAt: number, now: number): boolean {
   return now - loginAt < SESSION_TTL_MS;
 }
 
-export type SessionRole = "admin" | "operator";
+export type SessionRole = "admin" | "pricing" | "user";
 
 export type SessionPayload = {
   userId: number;
@@ -46,7 +46,7 @@ export function parseSession(data: unknown, now: number): SessionPayload | null 
     return null;
   }
   if (typeof row.displayName !== "string" || row.displayName.length > 64) return null;
-  if (row.role !== "admin" && row.role !== "operator") return null;
+  if (row.role !== "admin" && row.role !== "pricing" && row.role !== "user") return null;
   if (typeof row.loginAt !== "number" || !sessionIsActive(row.loginAt, now)) return null;
   return {
     userId,

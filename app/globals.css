@@ -552,6 +552,18 @@ button.linkish.danger:hover {
   background: var(--danger-soft);
 }
 
+button.linkish:disabled,
+button.linkish.danger:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: none;
+}
+
+button.linkish.danger:disabled:hover {
+  background: none;
+}
+
 .row-actions {
   display: flex;
   flex-wrap: nowrap;
@@ -786,6 +798,30 @@ button.linkish.danger:hover {
 
 .login-panel {
   max-width: 24rem;
+}
+
+.login-forgot-dialog {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+  max-width: 20rem;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.login-forgot-dialog::backdrop {
+  background: rgba(28, 27, 25, 0.35);
+}
+
+.login-forgot-dialog p {
+  margin: 0 0 0.9rem;
+}
+
+.login-forgot-dialog .actions {
+  margin: 0;
+  display: flex;
+  justify-content: center;
 }
 
 .login-panel label {

@@ -7,6 +7,7 @@ import { RowActions } from "@/app/customers/RowActions";
 import { ilikeContains, INVALID_FILTER_MESSAGE } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
 import { logServerError, publicErrorMessage } from "@/lib/public-error";
+import { requirePageArea } from "@/lib/page-access";
 
 export const dynamic = "force-dynamic";
 
@@ -43,11 +44,21 @@ export default async function CustomersPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const access = await requirePageArea("customers");
+  if (!access.ok) {
+    return (
+      <>
+        <h1 className="page-title">无权访问</h1>
+        <p className="error">{access.message}</p>
+      </>
+    );
+  }
   const sp = await searchParams;
   const source = one(sp.source).trim();
   const status = one(sp.status).trim();
   const name = one(sp.name).trim();
   const recipient = one(sp.recipient).trim();
+  const showAll = one(sp.all).trim() === "1";
 
   const where: string[] = ["c.deleted_at IS NULL"];
   const params: unknown[] = [];
@@ -57,69 +68,73 @@ export default async function CustomersPage({
     where.push("FALSE");
   };
 
-  if (source) {
-    if (source.length > LIMITS.source) markInvalid();
-    else {
-      params.push(source);
-      where.push(`c.source = $${params.length}`);
+  if (!showAll) {
+    if (source) {
+      if (source.length > LIMITS.source) markInvalid();
+      else {
+        params.push(source);
+        where.push(`c.source = $${params.length}`);
+      }
     }
-  }
-  if (status) {
-    if (status !== "active" && status !== "disabled") markInvalid();
-    else {
-      params.push(status);
-      where.push(`c.status = $${params.length}`);
+    if (status) {
+      if (status !== "active" && status !== "disabled") markInvalid();
+      else {
+        params.push(status);
+        where.push(`c.status = $${params.length}`);
+      }
+    }
+
+    // 多关键词：任一命中客户姓名或收件人姓名即显示（两框关键词合并）
+    const nameKeywords = [
+      ...new Set([...splitKeywords(name), ...splitKeywords(recipient)]),
+    ];
+    if (
+      nameKeywords.length > LIMITS.keywordCountMax ||
+      nameKeywords.some((kw) => kw.length > LIMITS.keywordMax)
+    ) {
+      markInvalid();
+    } else if (nameKeywords.length > 0) {
+      const parts = nameKeywords.map((kw) => {
+        params.push(ilikeContains(kw));
+        const i = params.length;
+        return `(c.name ILIKE $${i} ESCAPE '\\' OR a.recipient_name ILIKE $${i} ESCAPE '\\')`;
+      });
+      where.push(`(${parts.join(" OR ")})`);
     }
   }
 
-  // 多关键词：任一命中客户姓名或收件人姓名即显示（两框关键词合并）
-  const nameKeywords = [
-    ...new Set([...splitKeywords(name), ...splitKeywords(recipient)]),
-  ];
-  if (
-    nameKeywords.length > LIMITS.keywordCountMax ||
-    nameKeywords.some((kw) => kw.length > LIMITS.keywordMax)
-  ) {
-    markInvalid();
-  } else if (nameKeywords.length > 0) {
-    const parts = nameKeywords.map((kw) => {
-      params.push(ilikeContains(kw));
-      const i = params.length;
-      return `(c.name ILIKE $${i} ESCAPE '\\' OR a.recipient_name ILIKE $${i} ESCAPE '\\')`;
-    });
-    where.push(`(${parts.join(" OR ")})`);
-  }
-
-  const sql = `
-    SELECT
-      c.id,
-      c.code,
-      c.name,
-      c.source,
-      c.status,
-      a.id AS address_id,
-      a.recipient_name,
-      a.recipient_phone,
-      a.address,
-      a.label
-    FROM customers c
-    LEFT JOIN customer_addresses a
-      ON a.customer_id = c.id AND a.is_active = true
-    WHERE ${where.join(" AND ")}
-    ORDER BY c.code, a.id NULLS LAST
-    LIMIT 200
-  `;
+  const hasFilter = Boolean(source || status || name || recipient);
+  const shouldQuery = showAll || hasFilter;
 
   let rows: CustomerRow[] = [];
   let error: string | null = null;
-  try {
-    rows = await query<CustomerRow>(sql, params);
-  } catch (e) {
-    logServerError("customers list", e);
-    error = publicErrorMessage(e, "查询失败");
+  if (shouldQuery) {
+    const sql = `
+      SELECT
+        c.id,
+        c.code,
+        c.name,
+        c.source,
+        c.status,
+        a.id AS address_id,
+        a.recipient_name,
+        a.recipient_phone,
+        a.address,
+        a.label
+      FROM customers c
+      LEFT JOIN customer_addresses a
+        ON a.customer_id = c.id AND a.is_active = true
+      WHERE ${where.join(" AND ")}
+      ORDER BY c.code, a.id NULLS LAST
+      LIMIT 200
+    `;
+    try {
+      rows = await query<CustomerRow>(sql, params);
+    } catch (e) {
+      logServerError("customers list", e);
+      error = publicErrorMessage(e, "查询失败");
+    }
   }
-
-  const filtered = Boolean(source || status || name || recipient);
 
   return (
     <>
@@ -127,7 +142,7 @@ export default async function CustomersPage({
         <div>
           <h1 className="page-title">客户</h1>
           <p className="page-desc">
-            新建、导入、筛选与启停用。客户姓名 / 收件人支持「王，张」多词模糊：命中客户名或收件人即显示。最多 200 行。
+            新建、导入、查询与启停用。默认不列出客户；填写条件后点「查询」，或点「全部」列出所有客户。客户姓名 / 收件人支持「王，张」多词模糊。最多 200 行。
           </p>
         </div>
         <Link className="btn-secondary" href="/customers/import">
@@ -178,7 +193,10 @@ export default async function CustomersPage({
             />
           </label>
           <div className="actions">
-            <button type="submit">筛选</button>
+            <button type="submit">查询</button>
+            <a className="btn-secondary" href="/customers?all=1">
+              全部
+            </a>
             <a href="/customers">清空</a>
           </div>
         </form>
@@ -187,7 +205,9 @@ export default async function CustomersPage({
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
           <p className="empty">
-            {filtered ? "没有符合筛选条件的客户。" : "暂无客户。可在上方新建，或批量导入。"}
+            {shouldQuery
+              ? "没有符合条件的客户。"
+              : "请先输入条件后点「查询」，或点「全部」列出所有客户。"}
           </p>
         ) : null}
         {!error && rows.length > 0 ? (

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/current-user";
 import { requiredId } from "@/lib/input";
 import { isNextRedirect, logServerError, publicErrorMessage } from "@/lib/public-error";
-import { createStaffUser, updateStaffUser } from "@/lib/users";
+import { createStaffUser, deleteStaffUser, updateStaffUser } from "@/lib/users";
 
 export type ActionState = {
   ok: boolean;
@@ -62,5 +62,17 @@ export async function updateStaffUserAction(
       ok: false,
       message: publicErrorMessage(error, "保存失败"),
     };
+  }
+}
+
+export async function deleteStaffUserAction(formData: FormData): Promise<void> {
+  try {
+    await requireAdmin();
+    await deleteStaffUser(requiredId(formData.get("userId"), "用户"));
+    revalidatePath("/users");
+    revalidatePath("/", "layout");
+  } catch (error) {
+    logServerError("deleteStaffUser", error);
+    throw error;
   }
 }

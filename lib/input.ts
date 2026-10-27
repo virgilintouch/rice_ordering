@@ -58,6 +58,19 @@ export function requiredYear(raw: string): number {
   return year;
 }
 
+/** Batch codes like 00, 01, 02… (starts at 00 each year). Never invent a default. */
+export function parseBatch(raw: string): string | null {
+  const text = raw.trim();
+  if (!/^\d{2}$/.test(text)) return null;
+  return text;
+}
+
+export function requiredBatch(raw: string): string {
+  const batch = parseBatch(raw);
+  if (batch == null) throw new PublicError("批次须为两位数字，如 00、01");
+  return batch;
+}
+
 const MONEY_RE = /^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/;
 
 export function parseMoney(raw: string, label: string): number {

@@ -39,7 +39,9 @@ function dbId(value: string | number): number | null {
 function toUser(row: UserRow): AuthUser | null {
   const id = dbId(row.id);
   if (id == null || row.status !== "active") return null;
-  if (row.role !== "admin" && row.role !== "operator") return null;
+  if (row.role !== "admin" && row.role !== "pricing" && row.role !== "user") {
+    return null;
+  }
   return {
     id,
     username: row.username,
@@ -99,9 +101,23 @@ export async function requireActiveUser(): Promise<AuthUser> {
   throw new PublicError(LOGIN_REQUIRED_MESSAGE);
 }
 
-/** User-management writes. Operators who can already use prices stay off this path. */
+/** User-management writes. Only the sole admin. */
 export async function requireAdmin(): Promise<AuthUser> {
   const user = await requireActiveUser();
   if (user.role !== "admin") throw new PublicError("无权管理用户。");
+  return user;
+}
+
+/** Price create/edit. Only the pricing role. */
+export async function requirePricing(): Promise<AuthUser> {
+  const user = await requireActiveUser();
+  if (user.role !== "pricing") throw new PublicError("无权维护价目。");
+  return user;
+}
+
+/** Customers / orders / business writes. System users only. */
+export async function requireBusinessUser(): Promise<AuthUser> {
+  const user = await requireActiveUser();
+  if (user.role !== "user") throw new PublicError("无权操作业务数据。");
   return user;
 }

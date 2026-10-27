@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { logoutAction } from "@/app/login/actions";
 import { resolveAuth } from "@/lib/current-user";
 import { isNextRedirect, logServerError, publicErrorMessage } from "@/lib/public-error";
+import { areasForRole } from "@/lib/access";
 import { Nav } from "./components/Nav";
 import { labelOf, ROLE_LABEL } from "./labels";
 import "./globals.css";
@@ -46,7 +47,7 @@ export default async function RootLayout({
             <Link className="brand" href={user ? "/" : "/login"}>
               大米订购系统
             </Link>
-            {user ? <Nav showUsers={user.role === "admin"} /> : null}
+            {user ? <Nav areas={areasForRole(user.role)} /> : null}
             {user ? (
               <div className="session-bar">
                 <span className="session-name">{user.displayName}</span>

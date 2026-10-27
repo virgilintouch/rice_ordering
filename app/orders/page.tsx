@@ -8,6 +8,7 @@ import { advanceOrderAction } from "@/app/orders/actions";
 import { ilikeContains, INVALID_FILTER_MESSAGE, isIsoDate } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
 import { logServerError, publicErrorMessage } from "@/lib/public-error";
+import { requirePageArea } from "@/lib/page-access";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,15 @@ export default async function OrdersPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const access = await requirePageArea("orders");
+  if (!access.ok) {
+    return (
+      <>
+        <h1 className="page-title">无权访问</h1>
+        <p className="error">{access.message}</p>
+      </>
+    );
+  }
   const sp = await searchParams;
   const status = one(sp.status).trim();
   const customer = one(sp.customer).trim();
@@ -124,6 +134,7 @@ export default async function OrdersPage({
   }[] = [];
   let prices: {
     year: number;
+    batch: string;
     rice_cost_per_jin: string;
     jin_per_pack: number;
     retail_plain_per_jin: string;
@@ -148,6 +159,7 @@ export default async function OrdersPage({
     prices = await query(
       `SELECT
          year,
+         batch,
          rice_cost_per_jin,
          jin_per_pack,
          retail_plain_per_jin,
@@ -155,7 +167,7 @@ export default async function OrdersPage({
          vip_plain_per_jin,
          vip_vacuum_per_jin
        FROM rice_year_prices
-       ORDER BY year DESC`,
+       ORDER BY year DESC, batch ASC`,
     );
   } catch (e) {
     logServerError("orders list", e);
@@ -168,7 +180,7 @@ export default async function OrdersPage({
     <>
       <h1 className="page-title">订单</h1>
       <p className="page-desc">
-        先按客户编号 / 姓名筛选并选定客户与地址，再填价档与包数；价目年默认今年。下单自动抄快照。
+        先按客户编号 / 姓名筛选并选定客户与地址，再手动选择价目年份与批次（不会自动带出），再填价档与包数。下单自动抄快照。
       </p>
 
       <div className="panel">

@@ -8,6 +8,7 @@ const initial: ActionState = { ok: false, message: "" };
 
 export type EditPriceValues = {
   year: number;
+  batch: string;
   riceCostPerJin: string;
   shippingFeePerJin: string;
   vacuumFeePerJin: string;
@@ -24,7 +25,10 @@ export function EditPriceForm({ values }: { values: EditPriceValues }) {
   return (
     <form className="write-form" action={action}>
       <input type="hidden" name="year" value={values.year} />
-      <p className="meta">年份：{values.year}。年份是主键，不能改。已有订单仍按下单时的价格快照。</p>
+      <input type="hidden" name="batch" value={values.batch} />
+      <p className="meta">
+        年份：{values.year}，批次：{values.batch}。年份与批次是主键，不能改。已有订单仍按下单时快照。
+      </p>
       <div className="filters">
         <label>
           大米成本（元/斤）*

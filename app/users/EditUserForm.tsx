@@ -16,10 +16,12 @@ export type EditUserValues = {
 
 export function EditUserForm({ values }: { values: EditUserValues }) {
   const [state, action, pending] = useActionState(updateStaffUserAction, initial);
+  const isAdmin = values.role === "admin";
 
   return (
     <form className="write-form" action={action}>
       <input type="hidden" name="userId" value={values.id} />
+      {isAdmin ? <input type="hidden" name="role" value="admin" /> : null}
       <div className="filters">
         <label>
           用户名 *
@@ -42,10 +44,14 @@ export function EditUserForm({ values }: { values: EditUserValues }) {
         </label>
         <label>
           角色 *
-          <select name="role" defaultValue={values.role} required>
-            <option value="operator">操作员</option>
-            <option value="admin">管理员</option>
-          </select>
+          {isAdmin ? (
+            <input readOnly className="readonly-calc" value="管理员" title="管理员角色不可更改" />
+          ) : (
+            <select name="role" defaultValue={values.role} required>
+              <option value="user">系统用户</option>
+              <option value="pricing">定价员</option>
+            </select>
+          )}
         </label>
         <label>
           状态 *

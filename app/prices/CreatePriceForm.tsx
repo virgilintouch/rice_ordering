@@ -18,6 +18,9 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
   return (
     <form className="write-form" action={action}>
       <h2>新建年份价目</h2>
+      <p className="meta">
+        批次须手动填写；每年从 00 起（00、01、02…），同年可多批。系统不会自动选用批次。
+      </p>
       <div className="filters">
         <label>
           年份 *
@@ -29,6 +32,18 @@ export function CreatePriceForm({ defaultYear }: { defaultYear: number }) {
             max={2100}
             step={1}
             defaultValue={defaultYear}
+          />
+        </label>
+        <label>
+          批次 *
+          <input
+            name="batch"
+            required
+            maxLength={2}
+            pattern="[0-9]{2}"
+            placeholder="如 00"
+            title="两位数字，每年从 00 起；须手动填写，不会自动带出"
+            autoComplete="off"
           />
         </label>
         <label>

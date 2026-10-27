@@ -46,7 +46,7 @@ export async function authenticate(usernameRaw: string, password: string): Promi
   const hash = row?.password_hash || (await dummyPasswordHash());
   const match = await verifyPassword(password, hash);
   if (!username || !row || row.status !== "active" || !match) return null;
-  if (row.role !== "admin" && row.role !== "operator") return null;
+  if (row.role !== "admin" && row.role !== "pricing" && row.role !== "user") return null;
   const id = dbId(row.id);
   if (id == null) return null;
 
@@ -64,7 +64,8 @@ export async function authenticate(usernameRaw: string, password: string): Promi
     throw new PublicError("登录失败");
   }
 
-  const role: SessionRole = row.role === "admin" ? "admin" : "operator";
+  const role: SessionRole =
+    row.role === "admin" ? "admin" : row.role === "pricing" ? "pricing" : "user";
   return {
     id,
     username: row.username,

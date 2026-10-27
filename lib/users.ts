@@ -222,3 +222,31 @@ export async function updateStaffUser(
     return staffResult(rows[0]);
   });
 }
+
+/** Hard-delete a non-admin account. Admin rows are never removable. */
+export async function deleteStaffUser(idRaw: number): Promise<{ username: string }> {
+  const id = requiredId(idRaw, "用户");
+
+  return withTransaction(async (q) => {
+    const targetRows = await q<{ id: string | number; username: string; role: string }>(
+      `SELECT id, username, role
+       FROM app_users
+       WHERE id = $1
+       FOR UPDATE`,
+      [id],
+    );
+    const target = targetRows[0];
+    if (!target) throw new PublicError("用户不存在");
+    if (target.role === "admin") {
+      throw new PublicError("不能删除管理员账号");
+    }
+    if (!isStaffRole(target.role)) throw new PublicError("账号数据无效");
+
+    const deleted = await q<{ username: string }>(
+      `DELETE FROM app_users WHERE id = $1 RETURNING username`,
+      [id],
+    );
+    if (!deleted[0]) throw new PublicError("删除失败");
+    return { username: deleted[0].username };
+  });
+}

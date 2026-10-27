@@ -114,6 +114,7 @@ describe("staff and price writes against postgres", { skip: !enabled }, () => {
 
       await createPriceYear({
         year,
+        batch: "00",
         riceCostPerJin: 3.5,
         shippingFeePerJin: 1.2,
         vacuumFeePerJin: 0.5,
@@ -125,6 +126,7 @@ describe("staff and price writes against postgres", { skip: !enabled }, () => {
       });
       await updatePriceYear({
         year,
+        batch: "00",
         riceCostPerJin: 4,
         shippingFeePerJin: 1.2,
         vacuumFeePerJin: 0.5,
@@ -135,8 +137,8 @@ describe("staff and price writes against postgres", { skip: !enabled }, () => {
         jinPerPack: 10,
       });
       const price = await query<{ rice_cost_per_jin: string }>(
-        `SELECT rice_cost_per_jin::text FROM rice_year_prices WHERE year = $1`,
-        [year],
+        `SELECT rice_cost_per_jin::text FROM rice_year_prices WHERE year = $1 AND batch = $2`,
+        [year, "00"],
       );
       assert.equal(Number(price[0]?.rice_cost_per_jin), 4);
       assert.ok(pricing.id);

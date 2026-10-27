@@ -2,7 +2,7 @@ import Link from "next/link";
 import { query } from "@/lib/db";
 import { CreatePriceForm } from "@/app/prices/CreatePriceForm";
 import { canSeePriceCost, canWritePrices } from "@/lib/access";
-import { INVALID_FILTER_MESSAGE, parseYear } from "@/lib/input";
+import { INVALID_FILTER_MESSAGE, parseBatch, parseYear } from "@/lib/input";
 import { requirePageArea } from "@/lib/page-access";
 import { logServerError, publicErrorMessage } from "@/lib/public-error";
 
@@ -12,6 +12,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 type PriceRow = {
   year: number;
+  batch: string;
   rice_cost_per_jin: string;
   shipping_fee_per_jin: string;
   vacuum_fee_per_jin: string;
@@ -47,6 +48,7 @@ export default async function PricesPage({
 
   const sp = await searchParams;
   const year = one(sp.year).trim();
+  const batch = one(sp.batch).trim();
 
   const where: string[] = [];
   const params: unknown[] = [];
@@ -62,10 +64,22 @@ export default async function PricesPage({
       where.push(`year = $${params.length}`);
     }
   }
+  // Batch filter is optional for listing; never auto-filled — empty means no batch filter.
+  if (batch) {
+    const parsed = parseBatch(batch);
+    if (parsed == null) {
+      invalidFilter = true;
+      where.push("FALSE");
+    } else {
+      params.push(parsed);
+      where.push(`batch = $${params.length}`);
+    }
+  }
 
   const sql = `
     SELECT
       year,
+      batch,
       rice_cost_per_jin,
       shipping_fee_per_jin,
       vacuum_fee_per_jin,
@@ -76,7 +90,7 @@ export default async function PricesPage({
       jin_per_pack
     FROM rice_year_prices
     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-    ORDER BY year DESC
+    ORDER BY year DESC, batch ASC
     LIMIT 200
   `;
 
@@ -93,25 +107,25 @@ export default async function PricesPage({
   let defaultYear = currentYear;
   try {
     const years = await query<{ year: number }>(
-      `SELECT year FROM rice_year_prices ORDER BY year DESC`,
+      `SELECT DISTINCT year FROM rice_year_prices ORDER BY year DESC`,
     );
-    const taken = new Set(years.map((y) => y.year));
-    if (taken.has(currentYear)) {
+    const takenYears = new Set(years.map((y) => y.year));
+    if (takenYears.has(currentYear)) {
       defaultYear = (years[0]?.year ?? currentYear) + 1;
     }
   } catch {
     /* 表单仍可用当前年作为默认 */
   }
 
-  const filtered = Boolean(year);
+  const filtered = Boolean(year || batch);
 
   return (
     <>
       <h1 className="page-title">{showCost ? "成本 / 年份价目" : "年份售价"}</h1>
       <p className="page-desc">
         {canWrite
-          ? "定价员可按年维护成本、运费、真空费与四档售价。金额单位元/斤。已有订单仍用下单时快照。"
-          : "系统用户只读查看四档售价与每包斤数，不可修改成本或售价。下单时选用价档。"}
+          ? "定价员可按年+批次维护价目。批次每年从 00 起（00、01、02…），须手动填写；系统不会自动选用。金额单位元/斤。"
+          : "系统用户只读查看四档售价。下单时须手动选年份，再从该年已有批次下拉选择；不会自动带出批次。"}
       </p>
 
       {canWrite ? (
@@ -132,6 +146,17 @@ export default async function PricesPage({
             年份
             <input name="year" defaultValue={year} placeholder="如 2026" inputMode="numeric" />
           </label>
+          <label>
+            批次
+            <input
+              name="batch"
+              defaultValue={batch}
+              placeholder="如 00（可选）"
+              maxLength={2}
+              title="留空则不按批次过滤；不会自动填入"
+              autoComplete="off"
+            />
+          </label>
           <div className="actions">
             <button type="submit">筛选</button>
             <a href="/prices">清空</a>
@@ -143,9 +168,9 @@ export default async function PricesPage({
         {!error && rows.length === 0 ? (
           <p className="empty">
             {filtered
-              ? "没有这一年的价目。"
+              ? "没有符合条件的价目。"
               : canWrite
-                ? "暂无价目。可在上方新建一年。"
+                ? "暂无价目。可在上方新建一年+批次。"
                 : "暂无价目。请联系定价员维护。"}
           </p>
         ) : null}
@@ -155,6 +180,7 @@ export default async function PricesPage({
               <thead>
                 <tr>
                   <th>年份</th>
+                  <th>批次</th>
                   {showCost ? (
                     <>
                       <th className="num">成本</th>
@@ -172,8 +198,9 @@ export default async function PricesPage({
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.year}>
+                  <tr key={`${row.year}-${row.batch}`}>
                     <td className="emph">{row.year}</td>
+                    <td>{row.batch}</td>
                     {showCost ? (
                       <>
                         <td className="num">{row.rice_cost_per_jin}</td>
@@ -188,7 +215,10 @@ export default async function PricesPage({
                     <td className="num">{row.jin_per_pack}</td>
                     {canWrite ? (
                       <td>
-                        <Link className="linkish" href={`/prices/${row.year}/edit`}>
+                        <Link
+                          className="linkish"
+                          href={`/prices/${row.year}/${row.batch}/edit`}
+                        >
                           修改
                         </Link>
                       </td>

@@ -1,7 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
-import { createOrderAction, type ActionState } from "@/app/orders/actions";
+import {
+  createOrderAction,
+  listPriceBatchesForYearAction,
+  type ActionState,
+} from "@/app/orders/actions";
 import { LIMITS } from "@/lib/limits";
 
 export type CustomerOption = { id: number; name: string; code: string };
@@ -14,6 +18,7 @@ export type AddressOption = {
 };
 export type PriceYearOption = {
   year: number;
+  batch: string;
   rice_cost_per_jin: string;
   jin_per_pack: number;
   retail_plain_per_jin: string;
@@ -63,23 +68,23 @@ export function CreateOrderForm({
   addresses: AddressOption[];
   prices: PriceYearOption[];
 }) {
-  const currentYear = new Date().getFullYear();
-  const defaultYear = prices.some((p) => p.year === currentYear)
-    ? currentYear
-    : (prices[0]?.year ?? currentYear);
-
+  // Batch: dropdown-only from DB for the selected year — never text input, never auto-pick.
   const [codeQuery, setCodeQuery] = useState("");
   const [nameQuery, setNameQuery] = useState("");
   const [appliedCode, setAppliedCode] = useState("");
   const [appliedName, setAppliedName] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [addressId, setAddressId] = useState("");
-  const [priceYear, setPriceYear] = useState(String(defaultYear));
+  const [priceYear, setPriceYear] = useState("");
+  const [priceBatch, setPriceBatch] = useState("");
+  const [batchOptions, setBatchOptions] = useState<string[]>([]);
+  const [batchesLoading, setBatchesLoading] = useState(false);
   const [priceTier, setPriceTier] = useState<PriceTier>("retail_plain");
   const [packCount, setPackCount] = useState("1");
   const [formKey, setFormKey] = useState(0);
   const [state, action, pending] = useActionState(createOrderAction, initial);
   const lastResetMessage = useRef("");
+  const batchFetchGen = useRef(0);
 
   function resetCreateForm() {
     setCodeQuery("");
@@ -88,11 +93,31 @@ export function CreateOrderForm({
     setAppliedName("");
     setCustomerId("");
     setAddressId("");
-    setPriceYear(String(defaultYear));
+    setPriceYear("");
+    setPriceBatch("");
+    setBatchOptions([]);
+    setBatchesLoading(false);
     setPriceTier("retail_plain");
     setPackCount("1");
     setFormKey((k) => k + 1);
   }
+
+  // When year changes: query rice_year_prices for that year's batches; empty if none.
+  useEffect(() => {
+    if (!priceYear) {
+      setBatchOptions([]);
+      setBatchesLoading(false);
+      return;
+    }
+    const gen = ++batchFetchGen.current;
+    setBatchesLoading(true);
+    setBatchOptions([]);
+    void listPriceBatchesForYearAction(priceYear).then((batches) => {
+      if (gen !== batchFetchGen.current) return;
+      setBatchOptions(batches);
+      setBatchesLoading(false);
+    });
+  }, [priceYear]);
 
   useEffect(() => {
     if (!state.ok || !state.message) return;
@@ -143,7 +168,18 @@ export function CreateOrderForm({
     (c) => String(c.id) === customerId,
   );
 
-  const selectedPrice = prices.find((p) => String(p.year) === priceYear);
+  const yearOptions = useMemo(
+    () => [...new Set(prices.map((p) => p.year))].sort((a, b) => b - a),
+    [prices],
+  );
+
+  // Only resolve a price row after year + batch are both chosen from the dropdown.
+  const selectedPrice =
+    priceYear && priceBatch
+      ? prices.find(
+          (p) => String(p.year) === priceYear && p.batch === priceBatch,
+        )
+      : undefined;
 
   const unitPrice = selectedPrice
     ? Number(selectedPrice[TIER_FIELD[priceTier]])
@@ -171,6 +207,9 @@ export function CreateOrderForm({
     Boolean(customerId) &&
     Boolean(addressId) &&
     filteredAddresses.length > 0 &&
+    Boolean(priceYear) &&
+    Boolean(priceBatch) &&
+    Boolean(selectedPrice) &&
     !pending;
 
   return (
@@ -311,12 +350,42 @@ export function CreateOrderForm({
                 name="priceYear"
                 required
                 value={priceYear}
-                onChange={(e) => setPriceYear(e.target.value)}
+                onChange={(e) => {
+                  setPriceYear(e.target.value);
+                  // Changing year clears batch — never auto-pick a batch.
+                  setPriceBatch("");
+                }}
               >
-                {prices.map((p) => (
-                  <option key={p.year} value={p.year}>
-                    {p.year}
-                    {p.year === currentYear ? "（今年）" : ""}
+                <option value="">请选择年份</option>
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              批次 *
+              <select
+                name="priceBatch"
+                required
+                value={priceBatch}
+                disabled={!priceYear || batchesLoading}
+                onChange={(e) => setPriceBatch(e.target.value)}
+                title="仅可从该年价目表已有批次下拉选择，禁止手输；不会自动带出"
+              >
+                <option value="">
+                  {!priceYear
+                    ? "请先选年份"
+                    : batchesLoading
+                      ? "加载批次…"
+                      : batchOptions.length === 0
+                        ? "该年暂无批次"
+                        : "请选择批次"}
+                </option>
+                {batchOptions.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
                   </option>
                 ))}
               </select>
@@ -342,7 +411,7 @@ export function CreateOrderForm({
                 tabIndex={-1}
                 className="readonly-calc"
                 value={selectedPrice ? money(unitPrice) : "—"}
-                title="由所选价目年与价档从价目表自动带出"
+                title="由手动所选年份、批次与价档从价目表带出"
               />
             </label>
             <label>

@@ -12,6 +12,7 @@ export function CreateUserForm() {
   return (
     <form className="write-form" action={action}>
       <h2>新建后台账号</h2>
+      <p className="meta">管理员唯一，不可再创建。可创建定价员（全局唯一启用）或系统用户。</p>
       <div className="filters">
         <label>
           用户名 *
@@ -23,9 +24,9 @@ export function CreateUserForm() {
         </label>
         <label>
           角色 *
-          <select name="role" defaultValue="operator" required>
-            <option value="operator">操作员</option>
-            <option value="admin">管理员</option>
+          <select name="role" defaultValue="user" required>
+            <option value="user">系统用户</option>
+            <option value="pricing">定价员</option>
           </select>
         </label>
         <label>

@@ -7,6 +7,7 @@ import { RowActions } from "@/app/customers/RowActions";
 import { ilikeContains, INVALID_FILTER_MESSAGE } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
 import { logServerError, publicErrorMessage } from "@/lib/public-error";
+import { requirePageArea } from "@/lib/page-access";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,15 @@ export default async function CustomersPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const access = await requirePageArea("customers");
+  if (!access.ok) {
+    return (
+      <>
+        <h1 className="page-title">无权访问</h1>
+        <p className="error">{access.message}</p>
+      </>
+    );
+  }
   const sp = await searchParams;
   const source = one(sp.source).trim();
   const status = one(sp.status).trim();

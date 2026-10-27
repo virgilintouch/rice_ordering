@@ -30,19 +30,19 @@ npm run dev
 
 ## 登录
 
-账号在 **`app_users`**（没有第二张用户表；页面路由是 `/users`）。密码只存哈希。角色 `admin` / `operator`，停用（`disabled`）不能登录。
+账号在 **`app_users`**（没有第二张用户表；页面路由是 `/users`）。密码只存哈希。角色三档：`admin`（管理员，唯一）、`pricing`（定价员，唯一）、`user`（系统用户）；停用（`disabled`）不能登录。
 
 ### 怎么设密码
 
 库里没有现成哈希，也没有种子账号。在仓库根目录执行（会读 `.env.local` / `.env`，不打印哈希或密码）：
 
 ```bash
-node --experimental-strip-types scripts/set-app-user-password.ts <用户名> <密码> [显示名] [admin|operator]
+node --experimental-strip-types scripts/set-app-user-password.ts <用户名> <密码> [显示名] [admin|pricing|user]
 ```
 
 - 用户名已存在：只更新 `password_hash` 和 `updated_at`。
-- 用户名不存在：新建 `active` 账号。显示名默认等于用户名，角色默认 `admin`。
-- 示例：`node --experimental-strip-types scripts/set-app-user-password.ts admin '换一个长密码' '管理员' admin`
+- 用户名不存在：新建 `active` 账号。显示名默认等于用户名，角色默认 `user`。启用态 `admin` / `pricing` 各最多一人。
+- 示例：`node --experimental-strip-types scripts/set-app-user-password.ts pricing1 '换一个长密码' '定价员' pricing`
 
 然后打开 `/login`，用该用户名和密码登录。顶栏会显示显示名和角色，以及「退出」。
 
@@ -68,9 +68,9 @@ node --experimental-strip-types scripts/set-app-user-password.ts <用户名> <�
 
 服务只监听 `127.0.0.1`。未登录跳转的主机名是 `localhost`（Next 中间件内部地址）。`localhost` 和 `127.0.0.1` 都在本机，但会话 cookie 只属于登录时地址栏里的那个主机名，不要在两者之间切换。
 
-未登录访问工作人员页面会转到 `/login?next=…`（`next` 只接受站内相对路径）。客户 / 订单 / 价目的写入 Server Action 会再确认账号仍是启用的 `admin` 或 `operator`；否则返回「请先登录」，不返回栈或数据库原文。`/api/health` 仍公开，不含业务数据。
+未登录访问工作人员页面会转到 `/login?next=…`（`next` 只接受站内相对路径）。写入按角色再查库：`admin` 只管用户；`pricing` 维护价目；`user` 维护客户/订单。否则「请先登录」或无权提示，不返回栈或 SQL。`/api/health` 仍公开。
 
-`/users` 只给 `admin`。操作员的导航和首页没有这一项；直接打开会看到「无权查看」，并且不会查询用户表。管理员可新建、修改账号和重置密码（与 `scripts/set-app-user-password.ts` 一样走 bcrypt）。停用或降级最后一个启用的管理员会被拒绝。列表和修改页仍然不选 `password_hash`。操作员可以新建和修改年份价目（与查看价目同一权限）。价目没有删除。
+`/users` 只给唯一 `admin`，且不能再创建管理员。`pricing` 维护价目（含成本）。`user` 做客户/订单，价目只读售价（看不到成本列），毛利分析页暂为占位。停用唯一启用管理员/定价员会被拒绝。页面不查询 `password_hash`。
 
 空库时请先在「成本」新建年份价目、在「客户」新建或导入客户，再去「订单」下单。仓库**不含**真实业务数据与 `sample-data/` 样本文件。
 
@@ -181,7 +181,7 @@ Web 设计见 [docs/specs/2026-10-24-web-skeleton.md](docs/specs/2026-10-24-web-
 | username | VARCHAR(64) | UNIQUE, NOT NULL |
 | password_hash | TEXT | NOT NULL |
 | display_name | VARCHAR(64) | NOT NULL |
-| role | VARCHAR(16) | CHECK IN ('admin','operator') |
+| role | VARCHAR(16) | CHECK IN ('admin','pricing','user')；启用 admin/pricing 各最多一人 |
 | status | VARCHAR(16) | CHECK IN ('active','disabled') |
 | last_login_at | TIMESTAMPTZ | 可空 |
 | created_at, updated_at | TIMESTAMPTZ | |

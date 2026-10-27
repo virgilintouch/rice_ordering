@@ -1,11 +1,12 @@
 /**
  * Create an app_users row or replace that user's password.
  *
- *   node --experimental-strip-types scripts/set-app-user-password.ts <username> <password> [displayName] [admin|operator]
+ *   node --experimental-strip-types scripts/set-app-user-password.ts <username> <password> [displayName] [admin|pricing|user]
  *
  * Hashing matches lib/password.ts: bcrypt via bcryptjs, cost 10.
  * Loads .env.local then .env without overriding variables already in the environment.
  * Does not print the hash or the password.
+ * Enforces at most one active admin and one active pricing on create.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { hashPassword } from "../lib/password.ts";
@@ -34,7 +35,7 @@ function loadEnv(path: string): void {
 
 function usage(): never {
   console.error(
-    "用法: node --experimental-strip-types scripts/set-app-user-password.ts <用户名> <密码> [显示名] [admin|operator]",
+    "用法: node --experimental-strip-types scripts/set-app-user-password.ts <用户名> <密码> [显示名] [admin|pricing|user]",
   );
   process.exit(1);
 }
@@ -50,9 +51,9 @@ async function main(): Promise<void> {
     console.error("用户名需为 1–64 个字符");
     process.exit(1);
   }
-  const role = roleArg ?? "admin";
-  if (role !== "admin" && role !== "operator") {
-    console.error("角色只能是 admin 或 operator");
+  const role = roleArg ?? "user";
+  if (role !== "admin" && role !== "pricing" && role !== "user") {
+    console.error("角色只能是 admin、pricing 或 user");
     process.exit(1);
   }
   const displayName = (displayArg ?? username).trim();
@@ -82,6 +83,20 @@ async function main(): Promise<void> {
       console.log(`已更新密码：${updated.rows[0]?.username ?? username}`);
       return;
     }
+    if (role === "admin" || role === "pricing") {
+      const existing = await pool.query(
+        `SELECT 1 FROM app_users WHERE role = $1 AND status = 'active' LIMIT 1`,
+        [role],
+      );
+      if (existing.rowCount) {
+        console.error(
+          role === "admin"
+            ? "已存在启用的管理员，不能再建"
+            : "已存在启用的定价员，不能再建",
+        );
+        process.exit(1);
+      }
+    }
     await pool.query(
       `INSERT INTO app_users (username, password_hash, display_name, role)
        VALUES ($1, $2, $3, $4)`,
@@ -98,7 +113,7 @@ main().catch((error: unknown) => {
     typeof error === "object" && error !== null && "code" in error
       ? String((error as { code: unknown }).code)
       : "";
-  if (code === "23505") console.error("用户名已存在");
+  if (code === "23505") console.error("用户名已存在，或违反唯一管理员/定价员约束");
   else if (code === "42P01") console.error("数据表 app_users 不存在，请先执行迁移");
   else if (code === "ECONNREFUSED" || code === "ENOTFOUND") console.error("无法连接数据库");
   else console.error("设置密码失败");

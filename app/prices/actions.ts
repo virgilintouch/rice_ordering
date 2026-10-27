@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireActiveUser } from "@/lib/current-user";
+import { requirePricing } from "@/lib/current-user";
 import { parseMoney, parsePositiveInt, requiredYear } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
 import { isNextRedirect, logServerError, publicErrorMessage } from "@/lib/public-error";
@@ -40,7 +40,7 @@ export async function createPriceYearAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    await requireActiveUser();
+    await requirePricing();
     const result = await createPriceYear(priceInput(formData));
     revalidatePath("/prices");
     revalidatePath("/orders");
@@ -60,7 +60,7 @@ export async function updatePriceYearAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    await requireActiveUser();
+    await requirePricing();
     await updatePriceYear(priceInput(formData));
     revalidatePath("/prices");
     revalidatePath("/orders");

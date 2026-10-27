@@ -6,6 +6,7 @@ import { ORDER_STATUS_LABEL, PRICE_TIER_LABEL, labelOf } from "@/app/labels";
 import { OrderDetailActions } from "@/app/orders/[id]/OrderDetailActions";
 import { parseId } from "@/lib/input";
 import { logServerError } from "@/lib/public-error";
+import { requirePageArea } from "@/lib/page-access";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,15 @@ export default async function OrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const access = await requirePageArea("orders");
+  if (!access.ok) {
+    return (
+      <>
+        <h1 className="page-title">无权访问</h1>
+        <p className="error">{access.message}</p>
+      </>
+    );
+  }
   const { id: idRaw } = await params;
   const id = parseId(idRaw);
   if (id == null) notFound();

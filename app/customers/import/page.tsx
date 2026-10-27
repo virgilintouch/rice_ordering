@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { importCustomersAction } from "@/app/customers/actions";
 import { clipDisplay } from "@/lib/input";
+import { requirePageArea } from "@/lib/page-access";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -14,6 +15,15 @@ export default async function CustomerImportPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const access = await requirePageArea("customers");
+  if (!access.ok) {
+    return (
+      <>
+        <h1 className="page-title">无权访问</h1>
+        <p className="error">{access.message}</p>
+      </>
+    );
+  }
   const sp = await searchParams;
   const error = clipDisplay(one(sp.error), 300);
   const created = one(sp.created);

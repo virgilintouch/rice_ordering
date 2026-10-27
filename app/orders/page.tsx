@@ -8,6 +8,7 @@ import { advanceOrderAction } from "@/app/orders/actions";
 import { ilikeContains, INVALID_FILTER_MESSAGE, isIsoDate } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
 import { logServerError, publicErrorMessage } from "@/lib/public-error";
+import { requirePageArea } from "@/lib/page-access";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,15 @@ export default async function OrdersPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const access = await requirePageArea("orders");
+  if (!access.ok) {
+    return (
+      <>
+        <h1 className="page-title">无权访问</h1>
+        <p className="error">{access.message}</p>
+      </>
+    );
+  }
   const sp = await searchParams;
   const status = one(sp.status).trim();
   const customer = one(sp.customer).trim();

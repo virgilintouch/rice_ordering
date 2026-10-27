@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireActiveUser } from "@/lib/current-user";
+import { requireBusinessUser } from "@/lib/current-user";
 import { parsePositiveInt, requiredId, requiredYear } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
 import {
@@ -22,7 +22,7 @@ export async function createOrderAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    await requireActiveUser();
+    await requireBusinessUser();
     const result = await createOrder({
       customerId: requiredId(formData.get("customerId"), "客户"),
       addressId: requiredId(formData.get("addressId"), "地址"),
@@ -52,7 +52,7 @@ export async function createOrderAction(
 
 export async function advanceOrderAction(formData: FormData): Promise<void> {
   try {
-    await requireActiveUser();
+    await requireBusinessUser();
     const orderId = requiredId(formData.get("orderId"), "订单");
     await advanceOrderStatus(orderId);
     revalidatePath("/orders");

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { query } from "@/lib/db";
 import { CreatePriceForm } from "@/app/prices/CreatePriceForm";
+import { canSeePriceCost, canWritePrices } from "@/lib/access";
 import { INVALID_FILTER_MESSAGE, parseYear } from "@/lib/input";
+import { requirePageArea } from "@/lib/page-access";
 import { logServerError, publicErrorMessage } from "@/lib/public-error";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +32,19 @@ export default async function PricesPage({
 }: {
   searchParams: SearchParams;
 }) {
+  const access = await requirePageArea("prices");
+  if (!access.ok) {
+    return (
+      <>
+        <h1 className="page-title">无权访问</h1>
+        <p className="error">{access.message}</p>
+      </>
+    );
+  }
+
+  const canWrite = canWritePrices(access.user.role);
+  const showCost = canSeePriceCost(access.user.role);
+
   const sp = await searchParams;
   const year = one(sp.year).trim();
 
@@ -92,14 +107,18 @@ export default async function PricesPage({
 
   return (
     <>
-      <h1 className="page-title">成本 / 年份价目</h1>
+      <h1 className="page-title">{showCost ? "成本 / 年份价目" : "年份售价"}</h1>
       <p className="page-desc">
-        按年份维护成本、运费、真空费与四档售价。表内金额为元/斤。可筛选、新建或修改。已有订单仍用下单时的价格快照。价目没有启停或删除。
+        {canWrite
+          ? "定价员可按年维护成本、运费、真空费与四档售价。金额单位元/斤。已有订单仍用下单时快照。"
+          : "系统用户只读查看四档售价与每包斤数，不可修改成本或售价。下单时选用价档。"}
       </p>
 
-      <div className="panel">
-        <CreatePriceForm defaultYear={defaultYear} />
-      </div>
+      {canWrite ? (
+        <div className="panel">
+          <CreatePriceForm defaultYear={defaultYear} />
+        </div>
+      ) : null}
 
       <div className="panel">
         <div className="panel-head">
@@ -123,47 +142,61 @@ export default async function PricesPage({
         {error ? <p className="error">{error}</p> : null}
         {!error && rows.length === 0 ? (
           <p className="empty">
-            {filtered ? "没有这一年的价目。" : "暂无价目。可在上方新建一年。"}
+            {filtered
+              ? "没有这一年的价目。"
+              : canWrite
+                ? "暂无价目。可在上方新建一年。"
+                : "暂无价目。请联系定价员维护。"}
           </p>
         ) : null}
         {!error && rows.length > 0 ? (
           <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>年份</th>
-                    <th className="num">成本</th>
-                    <th className="num">运费</th>
-                    <th className="num">真空费</th>
-                    <th className="num">零售普通</th>
-                    <th className="num">零售真空</th>
-                    <th className="num">VIP 普通</th>
-                    <th className="num">VIP 真空</th>
-                    <th className="num">每包斤数</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.year}>
-                      <td className="emph">{row.year}</td>
-                      <td className="num">{row.rice_cost_per_jin}</td>
-                      <td className="num">{row.shipping_fee_per_jin}</td>
-                      <td className="num">{row.vacuum_fee_per_jin}</td>
-                      <td className="num">{row.retail_plain_per_jin}</td>
-                      <td className="num">{row.retail_vacuum_per_jin}</td>
-                      <td className="num">{row.vip_plain_per_jin}</td>
-                      <td className="num">{row.vip_vacuum_per_jin}</td>
-                      <td className="num">{row.jin_per_pack}</td>
+            <table>
+              <thead>
+                <tr>
+                  <th>年份</th>
+                  {showCost ? (
+                    <>
+                      <th className="num">成本</th>
+                      <th className="num">运费</th>
+                      <th className="num">真空费</th>
+                    </>
+                  ) : null}
+                  <th className="num">零售普通</th>
+                  <th className="num">零售真空</th>
+                  <th className="num">VIP 普通</th>
+                  <th className="num">VIP 真空</th>
+                  <th className="num">每包斤数</th>
+                  {canWrite ? <th>操作</th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.year}>
+                    <td className="emph">{row.year}</td>
+                    {showCost ? (
+                      <>
+                        <td className="num">{row.rice_cost_per_jin}</td>
+                        <td className="num">{row.shipping_fee_per_jin}</td>
+                        <td className="num">{row.vacuum_fee_per_jin}</td>
+                      </>
+                    ) : null}
+                    <td className="num">{row.retail_plain_per_jin}</td>
+                    <td className="num">{row.retail_vacuum_per_jin}</td>
+                    <td className="num">{row.vip_plain_per_jin}</td>
+                    <td className="num">{row.vip_vacuum_per_jin}</td>
+                    <td className="num">{row.jin_per_pack}</td>
+                    {canWrite ? (
                       <td>
                         <Link className="linkish" href={`/prices/${row.year}/edit`}>
                           修改
                         </Link>
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : null}
       </div>

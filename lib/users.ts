@@ -3,8 +3,15 @@ import { requiredId, requiredText } from "@/lib/input";
 import { PASSWORD_MAX_LENGTH, hashPassword } from "@/lib/password";
 import { PublicError } from "@/lib/public-error";
 import {
+  ADMIN_ASSIGNABLE_ROLES,
+  ADMIN_CREATE_DENIED,
   LAST_ADMIN_MESSAGE,
+  LAST_PRICING_MESSAGE,
+  PRICING_EXISTS_MESSAGE,
+  isStaffRole,
   removesLastActiveAdmin,
+  removesLastActivePricing,
+  wouldAddSecondActivePricing,
   type StaffRole,
   type StaffStatus,
 } from "@/lib/staff-policy";
@@ -26,13 +33,21 @@ function requiredUsername(raw: string): string {
 }
 
 function parseRole(raw: string): StaffRole {
-  if (raw !== "admin" && raw !== "operator") throw new PublicError("角色无效");
+  if (!isStaffRole(raw)) throw new PublicError("角色无效");
   return raw;
 }
 
 function parseStatus(raw: string): StaffStatus {
   if (raw !== "active" && raw !== "disabled") throw new PublicError("状态无效");
   return raw;
+}
+
+function parseAssignableRole(raw: string): StaffRole {
+  const role = parseRole(raw);
+  if (!ADMIN_ASSIGNABLE_ROLES.includes(role)) {
+    throw new PublicError(ADMIN_CREATE_DENIED);
+  }
+  return role;
 }
 
 async function storedPasswordHash(password: string): Promise<string> {
@@ -63,7 +78,7 @@ export async function createStaffUser(
 ): Promise<{ id: number; username: string }> {
   const username = requiredUsername(input.username);
   const displayName = requiredText(input.displayName, "显示名", 64);
-  const role = parseRole(input.role);
+  const role = parseAssignableRole(input.role);
   const status = parseStatus(input.status);
   const passwordHash = await storedPasswordHash(input.password);
 
@@ -73,6 +88,13 @@ export async function createStaffUser(
       [username],
     );
     if (taken[0]) throw new PublicError("用户名已存在");
+
+    if (role === "pricing" && status === "active") {
+      const pricing = await q<{ id: string | number }>(
+        `SELECT id FROM app_users WHERE role = 'pricing' AND status = 'active' FOR UPDATE`,
+      );
+      if (pricing[0]) throw new PublicError(PRICING_EXISTS_MESSAGE);
+    }
 
     const rows = await q<{ id: string | number; username: string }>(
       `INSERT INTO app_users (username, password_hash, display_name, role, status)
@@ -90,7 +112,6 @@ export async function updateStaffUser(
   const id = requiredId(input.id, "用户");
   const username = requiredUsername(input.username);
   const displayName = requiredText(input.displayName, "显示名", 64);
-  const role = parseRole(input.role);
   const status = parseStatus(input.status);
   const passwordHash = input.password ? await storedPasswordHash(input.password) : null;
 
@@ -99,6 +120,13 @@ export async function updateStaffUser(
       `SELECT id
        FROM app_users
        WHERE role = 'admin' AND status = 'active'
+       ORDER BY id
+       FOR UPDATE`,
+    );
+    const activePricing = await q<{ id: string | number }>(
+      `SELECT id
+       FROM app_users
+       WHERE role = 'pricing' AND status = 'active'
        ORDER BY id
        FOR UPDATE`,
     );
@@ -111,22 +139,54 @@ export async function updateStaffUser(
     );
     const target = targetRows[0];
     if (!target) throw new PublicError("用户不存在");
-    if (
-      (target.role !== "admin" && target.role !== "operator") ||
-      (target.status !== "active" && target.status !== "disabled")
-    ) {
+    if (!isStaffRole(target.role) || (target.status !== "active" && target.status !== "disabled")) {
       throw new PublicError("账号数据无效");
     }
+
+    // Editing the sole admin: keep role=admin (cannot create another admin via form).
+    // Editing anyone else: only assignable roles.
+    let role: StaffRole;
+    if (target.role === "admin") {
+      role = "admin";
+      if (parseRole(input.role) !== "admin") {
+        throw new PublicError(LAST_ADMIN_MESSAGE);
+      }
+    } else {
+      role = parseAssignableRole(input.role);
+    }
+
     if (
       removesLastActiveAdmin({
         activeAdminCount: activeAdmins.length,
         targetRole: target.role,
-        targetStatus: target.status,
+        targetStatus: target.status as StaffStatus,
         nextRole: role,
         nextStatus: status,
       })
     ) {
       throw new PublicError(LAST_ADMIN_MESSAGE);
+    }
+    if (
+      removesLastActivePricing({
+        activePricingCount: activePricing.length,
+        targetRole: target.role,
+        targetStatus: target.status as StaffStatus,
+        nextRole: role,
+        nextStatus: status,
+      })
+    ) {
+      throw new PublicError(LAST_PRICING_MESSAGE);
+    }
+    if (
+      wouldAddSecondActivePricing({
+        activePricingCount: activePricing.length,
+        nextRole: role,
+        nextStatus: status,
+        targetAlreadyActivePricing:
+          target.role === "pricing" && target.status === "active",
+      })
+    ) {
+      throw new PublicError(PRICING_EXISTS_MESSAGE);
     }
 
     const taken = await q<{ id: string | number }>(

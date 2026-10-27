@@ -83,7 +83,7 @@ export default async function UsersPage({
   };
 
   if (role) {
-    if (role !== "admin" && role !== "operator") markInvalid();
+    if (role !== "admin" && role !== "pricing" && role !== "user") markInvalid();
     else {
       params.push(role);
       where.push(`role = $${params.length}`);
@@ -138,7 +138,8 @@ export default async function UsersPage({
             <select name="role" defaultValue={role}>
               <option value="">全部</option>
               <option value="admin">管理员</option>
-              <option value="operator">操作员</option>
+              <option value="pricing">定价员</option>
+              <option value="user">系统用户</option>
             </select>
           </label>
           <label>

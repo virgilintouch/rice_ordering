@@ -10,7 +10,7 @@ import {
   updateCustomerAndAddress,
 } from "@/lib/customers";
 import { parseCustomerImportFile } from "@/lib/import-parse";
-import { requireActiveUser } from "@/lib/current-user";
+import { requireBusinessUser } from "@/lib/current-user";
 import { clipDisplay, requiredId } from "@/lib/input";
 import { LIMITS } from "@/lib/limits";
 import {
@@ -30,7 +30,7 @@ export async function createCustomerAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    await requireActiveUser();
+    await requireBusinessUser();
     const result = await createCustomerWithAddress({
       name: String(formData.get("name") || ""),
       source: String(formData.get("source") || ""),
@@ -54,7 +54,7 @@ export async function createCustomerAction(
 
 export async function setCustomerStatusAction(formData: FormData): Promise<void> {
   try {
-    await requireActiveUser();
+    await requireBusinessUser();
     const id = requiredId(formData.get("customerId"), "客户");
     const status = String(formData.get("status") ?? "");
     if (status !== "active" && status !== "disabled") {
@@ -74,7 +74,7 @@ export async function updateCustomerAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    await requireActiveUser();
+    await requireBusinessUser();
     const customerId = requiredId(formData.get("customerId"), "客户");
     const addressId = requiredId(formData.get("addressId"), "地址");
     await updateCustomerAndAddress({
@@ -103,7 +103,7 @@ export async function updateCustomerAction(
 
 export async function deleteCustomerAction(formData: FormData): Promise<void> {
   try {
-    await requireActiveUser();
+    await requireBusinessUser();
     const id = requiredId(formData.get("customerId"), "客户");
     await softDeleteCustomer(id);
     revalidatePath("/customers");
@@ -116,7 +116,7 @@ export async function deleteCustomerAction(formData: FormData): Promise<void> {
 
 export async function importCustomersAction(formData: FormData): Promise<void> {
   try {
-    await requireActiveUser();
+    await requireBusinessUser();
     const file = formData.get("file");
     if (!(file instanceof File) || file.size === 0) {
       redirect("/customers/import?error=" + encodeURIComponent("请选择文件"));

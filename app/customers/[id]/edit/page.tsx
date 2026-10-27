@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { EditCustomerForm } from "@/app/customers/EditCustomerForm";
 import { parseId } from "@/lib/input";
 import { logServerError } from "@/lib/public-error";
+import { requirePageArea } from "@/lib/page-access";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -19,6 +20,15 @@ export default async function EditCustomerPage({
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
 }) {
+  const access = await requirePageArea("customers");
+  if (!access.ok) {
+    return (
+      <>
+        <h1 className="page-title">无权访问</h1>
+        <p className="error">{access.message}</p>
+      </>
+    );
+  }
   const { id: idRaw } = await params;
   const sp = await searchParams;
   const customerId = parseId(idRaw);

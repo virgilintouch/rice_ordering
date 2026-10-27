@@ -14,7 +14,8 @@ export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
 
 export const ROLE_LABEL: Record<string, string> = {
   admin: "管理员",
-  operator: "操作员",
+  pricing: "定价员",
+  user: "系统用户",
 };
 
 export const PRICE_TIER_LABEL: Record<string, string> = {
